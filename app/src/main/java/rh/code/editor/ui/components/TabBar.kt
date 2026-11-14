@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,7 +34,7 @@ fun TabBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -46,27 +47,28 @@ fun TabBar(
                 val isActive = doc.id == activeId
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isActive) TabActive else TabInactive)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isActive) Primary else SurfaceElevated)
                         .clickable { onTabClick(doc.id) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = if (doc.isModified) "• ${doc.name}" else doc.name,
                         color = if (isActive) OnPrimary else TextPrimary,
                         fontSize = 13.sp,
+                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 120.dp)
+                        modifier = Modifier.widthIn(max = 130.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = if (isActive) OnPrimary else TextSecondary,
+                        tint = if (isActive) OnPrimary.copy(alpha = 0.8f) else TextSecondary,
                         modifier = Modifier
-                            .size(16.dp)
+                            .size(15.dp)
                             .clickable { onTabClose(doc.id) }
                     )
                 }
@@ -77,8 +79,8 @@ fun TabBar(
 
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(Primary)
                 .clickable { onAddClick() },
             contentAlignment = Alignment.Center
@@ -87,7 +89,7 @@ fun TabBar(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add",
                 tint = OnPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }

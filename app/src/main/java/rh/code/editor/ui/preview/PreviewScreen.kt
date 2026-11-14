@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,19 +33,18 @@ fun PreviewScreen(
             .fillMaxSize()
             .background(Background)
     ) {
-        // top bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Surface)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceVariant)
+                    .background(SurfaceElevated)
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
@@ -58,24 +58,22 @@ fun PreviewScreen(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // url bar (read only)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceVariant)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Preview",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
                 Text(
                     text = session.url,
                     color = TextSecondary,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     maxLines = 1
                 )
             }
         }
 
-        // webview
         AndroidView(
             factory = { context ->
                 WebView(context).apply {

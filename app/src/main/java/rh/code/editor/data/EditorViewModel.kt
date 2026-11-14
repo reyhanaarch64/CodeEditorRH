@@ -12,9 +12,7 @@ import kotlinx.coroutines.withContext
 import rh.code.editor.preview.PreviewManager
 import rh.code.editor.preview.PreviewSession
 import rh.code.editor.syntax.SyntaxHighlighter
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
 import java.util.UUID
 
 class EditorViewModel : ViewModel() {
@@ -74,6 +72,13 @@ class EditorViewModel : ViewModel() {
         }
     }
 
+    fun setLanguage(id: String, language: String) {
+        val index = documents.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            documents[index] = documents[index].copy(language = language)
+        }
+    }
+
     fun closeDocument(id: String) {
         val index = documents.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -118,7 +123,7 @@ class EditorViewModel : ViewModel() {
                         </head>
                         <body>
                             <h1>Hello from $projectName</h1>
-                            <p>Edit this file and press Preview.</p>
+                            <p>Edit this file and press Run.</p>
                         </body>
                         </html>
                         """.trimIndent()

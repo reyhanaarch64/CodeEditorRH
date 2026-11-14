@@ -1,6 +1,5 @@
 package rh.code.editor
 
-import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -25,8 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import rh.code.editor.data.EditorViewModel
-import rh.code.editor.ui.components.EditorToolbar
-import rh.code.editor.ui.components.TabBar
+import rh.code.editor.ui.components.*
 import rh.code.editor.ui.editor.CodeEditorScreen
 import rh.code.editor.ui.preview.PreviewScreen
 import rh.code.editor.ui.theme.*
@@ -73,10 +71,15 @@ fun EditorApp(
 ) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showLanguagePicker by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     var projectName by remember { mutableStateOf("") }
-    val showNewProject = viewModel.showNewProjectDialog.value
+    var cursorLine by remember { mutableStateOf(1) }
+    var cursorCol by remember { mutableStateOf(1) }
+    var pendingSymbol by remember { mutableStateOf<String?>(null) }
 
-    // SAF launcher
     val openFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -93,13 +96,10 @@ fun EditorApp(
         }
     }
 
-    // permission check
     fun hasManageStorage(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
-        } else {
-            true
-        }
+        } else true
     }
 
     fun requestManageStorage() {
@@ -120,6 +120,7 @@ fun EditorApp(
             .fillMaxSize()
             .background(Background)
     ) {
+        // tabs
         TabBar(
             documents = viewModel.documents,
             activeId = viewModel.activeDocumentId.value,
@@ -133,16 +134,41 @@ fun EditorApp(
                     activeDoc.name.endsWith(".html", true) ||
                     activeDoc.name.endsWith(".htm", true)
 
+            // toolbar
             EditorToolbar(
                 fileName = activeDoc.name + if (activeDoc.isModified) " •" else "",
+                language = activeDoc.language,
                 onSave = { viewModel.saveActiveDocument(context) },
                 onPreview = { viewModel.openPreview() },
+                onSearch = { showSearch = true },
+                onMore = { showMoreMenu = true },
                 canPreview = canPreview
             )
 
-            CodeEditorScreen(
-                document = activeDoc,
-                onContentChange = { viewModel.updateContent(activeDoc.id, it) }
+            // editor area
+            Box(modifier = Modifier.weight(1f)) {
+                CodeEditorScreen(
+                    document = activeDoc,
+                    onContentChange = { viewModel.updateContent(activeDoc.id, it) },
+                    onCursorChange = { line, col ->
+                        cursorLine = line
+                        cursorCol = col
+                    },
+                    insertSymbol = pendingSymbol,
+                    onSymbolInserted = { pendingSymbol = null }
+                )
+            }
+
+            // symbol bar
+            SymbolBar(onSymbolClick = { pendingSymbol = it })
+
+            // status bar
+            val totalLines = activeDoc.content.count { it == '\n' } + 1
+            StatusBar(
+                line = cursorLine,
+                column = cursorCol,
+                language = activeDoc.language,
+                totalLines = totalLines
             )
         }
     }
@@ -153,22 +179,17 @@ fun EditorApp(
             onDismissRequest = { showMenu = false },
             containerColor = Surface,
             shape = RoundedCornerShape(20.dp),
-            title = {
-                Text("Tambah", color = TextPrimary, fontSize = 18.sp)
-            },
+            title = { Text("Tambah", color = TextPrimary, fontSize = 18.sp) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     MenuButton("Buka File (SAF)") {
                         showMenu = false
                         openFileLauncher.launch(arrayOf("*/*"))
                     }
                     MenuButton("Buat Project Baru") {
                         showMenu = false
-                        if (!hasManageStorage()) {
-                            requestManageStorage()
-                        } else {
-                            viewModel.showNewProjectDialog.value = true
-                        }
+                        if (!hasManageStorage()) requestManageStorage()
+                        else viewModel.showNewProjectDialog.value = true
                     }
                     MenuButton("File Baru") {
                         showMenu = false
@@ -185,15 +206,130 @@ fun EditorApp(
         )
     }
 
+    // more menu
+    if (showMoreMenu) {
+        AlertDialog(
+            onDismissRequest = { showMoreMenu = false },
+            containerColor = Surface,
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Menu", color = TextPrimary, fontSize = 18.sp) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MenuButton("Cari Teks") {
+                        showMoreMenu = false
+                        showSearch = true
+                    }
+                    MenuButton("Pilih Syntax Highlight") {
+                        showMoreMenu = false
+                        showLanguagePicker = true
+                    }
+                    MenuButton("Save") {
+                        showMoreMenu = false
+                        viewModel.saveActiveDocument(context)
+                    }
+                    if (activeDoc != null && (activeDoc.language == "html" || activeDoc.name.endsWith(".html", true))) {
+                        MenuButton("Run HTML Preview") {
+                            showMoreMenu = false
+                            viewModel.openPreview()
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showMoreMenu = false }) {
+                    Text("Tutup", color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    // language picker
+    if (showLanguagePicker && activeDoc != null) {
+        val langs = listOf("plaintext", "html", "css", "javascript", "kotlin", "json", "xml", "python", "java")
+        AlertDialog(
+            onDismissRequest = { showLanguagePicker = false },
+            containerColor = Surface,
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Pilih Syntax", color = TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    langs.forEach { lang ->
+                        val selected = activeDoc.language == lang
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (selected) Primary else SurfaceElevated)
+                                .clickable {
+                                    viewModel.setLanguage(activeDoc.id, lang)
+                                    showLanguagePicker = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 14.dp)
+                        ) {
+                            Text(
+                                text = lang,
+                                color = if (selected) OnPrimary else TextPrimary,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLanguagePicker = false }) {
+                    Text("Batal", color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    // search dialog
+    if (showSearch) {
+        AlertDialog(
+            onDismissRequest = { showSearch = false },
+            containerColor = Surface,
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Cari Teks", color = TextPrimary) },
+            text = {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    placeholder = { Text("ketik kata kunci...", color = TextSecondary) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = Primary,
+                        unfocusedBorderColor = Border,
+                        cursorColor = Primary
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // simple search: just close for now, highlight bisa ditambah nanti
+                    showSearch = false
+                }) {
+                    Text("Cari", color = Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSearch = false }) {
+                    Text("Batal", color = TextSecondary)
+                }
+            }
+        )
+    }
+
     // new project dialog
-    if (showNewProject) {
+    if (viewModel.showNewProjectDialog.value) {
         AlertDialog(
             onDismissRequest = { viewModel.showNewProjectDialog.value = false },
             containerColor = Surface,
             shape = RoundedCornerShape(20.dp),
-            title = {
-                Text("Nama Project", color = TextPrimary)
-            },
+            title = { Text("Nama Project", color = TextPrimary) },
             text = {
                 OutlinedTextField(
                     value = projectName,
@@ -210,15 +346,13 @@ fun EditorApp(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (projectName.isNotBlank()) {
-                            viewModel.createProject(context, projectName.trim())
-                            projectName = ""
-                            viewModel.showNewProjectDialog.value = false
-                        }
+                TextButton(onClick = {
+                    if (projectName.isNotBlank()) {
+                        viewModel.createProject(context, projectName.trim())
+                        projectName = ""
+                        viewModel.showNewProjectDialog.value = false
                     }
-                ) {
+                }) {
                     Text("Buat", color = Primary)
                 }
             },
@@ -240,7 +374,7 @@ fun MenuButton(text: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(SurfaceVariant)
+            .background(SurfaceElevated)
             .clickable { onClick() }
             .padding(vertical = 14.dp, horizontal = 16.dp)
     ) {
