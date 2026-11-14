@@ -1,18 +1,14 @@
 version:1
 name:Python
-extensions:py,pyw,pyi
-keywords:False,None,True,and,as,assert,async,await,break,class,continue,def,del,elif,else,except,finally,for,from,global,if,import,in,is,lambda,nonlocal,not,or,pass,raise,return,try,while,with,yield
+extensions:py,pyw
+keywords:def,class,import,from,as,if,elif,else,for,while,return,True,False,None,with,try,except,finally,raise,lambda,yield,async,await,pass,break,continue,and,or,not,in,is,global,nonlocal
 colors:
   keyword:#FF7B72
   string:#A5D6FF
   comment:#8B949E
   number:#79C0FF
-  operator:#FFA657
-  function:#D2A8FF
-  type:#FFA657
   default:#E6EDF3
 rules:
-  comment: #.*$
-  string: """.*?"""|\'\'\'.*?\'\'\'|".*?"|\'.*?\'
-  number: \b\d+(\.\d+)?([eE][+-]?\d+)?\b
-  operator: [+\-*/%=!<>|&^~:]+
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

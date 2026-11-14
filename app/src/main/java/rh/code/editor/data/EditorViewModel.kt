@@ -26,8 +26,9 @@ class EditorViewModel : ViewModel() {
     val currentProject = mutableStateOf<ProjectInfo?>(null)
     val drawerOpen = mutableStateOf(false)
     val moreDrawerOpen = mutableStateOf(false)
-    val themeMode = mutableStateOf("dark")
-    val wallpaperUri = mutableStateOf<String?>(null)
+    val isDarkTheme = mutableStateOf(true)
+    val wallpaperUri = mutableStateOf<Uri?>(null)
+    val treeVersion = mutableStateOf(0) // naikkan biar tree recompose
 
     private val previewManager = PreviewManager()
 
@@ -87,18 +88,18 @@ class EditorViewModel : ViewModel() {
                 activeDocumentId.value = documents.firstOrNull()?.id
             }
         }
-        if (documents.isEmpty() && currentProject.value == null) {
-            createNewDocument()
-        }
+        if (documents.isEmpty() && currentProject.value == null) createNewDocument()
     }
 
-    fun setActive(id: String) {
-        activeDocumentId.value = id
-    }
-
+    fun setActive(id: String) { activeDocumentId.value = id }
     fun getActiveDocument(): Document? = documents.find { it.id == activeDocumentId.value }
 
-    // ========== PROJECT ==========
+    fun listAvailableProjects(): List<File> {
+        val root = File("/sdcard/codeEditorRH")
+        if (!root.exists()) return emptyList()
+        return root.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
+    }
+
     fun openProject(context: Context, projectPath: String) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -117,10 +118,9 @@ class EditorViewModel : ViewModel() {
                         val first = dir.listFiles()?.firstOrNull { it.isFile }
                         if (first != null) {
                             openDocument(Uri.fromFile(first), first.name, first.readText(), first.absolutePath)
-                        } else {
-                            createNewDocument("index.html")
-                        }
+                        } else createNewDocument("index.html")
                     }
+                    treeVersion.value++
                     drawerOpen.value = true
                 }
             }
@@ -135,6 +135,7 @@ class EditorViewModel : ViewModel() {
         else activeDocumentId.value = documents.firstOrNull()?.id
         outsideProjectDocuments.clear()
         drawerOpen.value = false
+        treeVersion.value++
     }
 
     fun createProject(context: Context, projectName: String) {
@@ -169,26 +170,27 @@ class EditorViewModel : ViewModel() {
         }
     }
 
-    fun createFileInProject(name: String) {
+    /** parentPath kosong = root project */
+    fun createInProject(parentPath: String, name: String, isFolder: Boolean) {
         val proj = currentProject.value ?: return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val file = File(proj.rootPath, name)
-                if (!file.exists()) {
-                    file.writeText("")
-                    withContext(Dispatchers.Main) {
-                        openDocument(Uri.fromFile(file), name, "", file.absolutePath)
+                val parent = if (parentPath.isBlank()) File(proj.rootPath) else File(parentPath)
+                if (!parent.exists()) parent.mkdirs()
+                if (isFolder) {
+                    File(parent, name).mkdirs()
+                } else {
+                    val f = File(parent, name)
+                    if (!f.exists()) {
+                        f.writeText("")
+                        withContext(Dispatchers.Main) {
+                            openDocument(Uri.fromFile(f), name, "", f.absolutePath)
+                        }
                     }
                 }
-            }
-        }
-    }
-
-    fun createFolderInProject(name: String) {
-        val proj = currentProject.value ?: return
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                File(proj.rootPath, name).mkdirs()
+                withContext(Dispatchers.Main) {
+                    treeVersion.value++ // force tree refresh
+                }
             }
         }
     }
@@ -202,11 +204,8 @@ class EditorViewModel : ViewModel() {
         val nodes = mutableListOf<FileNode>()
         val files = dir.listFiles()?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() })) ?: return emptyList()
         for (f in files) {
-            if (f.isDirectory) {
-                nodes.add(FileNode(f.name, f.absolutePath, true, buildTree(f)))
-            } else {
-                nodes.add(FileNode(f.name, f.absolutePath, false, emptyList()))
-            }
+            if (f.isDirectory) nodes.add(FileNode(f.name, f.absolutePath, true, buildTree(f)))
+            else nodes.add(FileNode(f.name, f.absolutePath, false, emptyList()))
         }
         return nodes
     }
@@ -229,7 +228,7 @@ class EditorViewModel : ViewModel() {
         }
     }
 
-    fun openPreview(context: android.content.Context? = null) {
+    fun openPreview(context: Context? = null) {
         val doc = getActiveDocument() ?: return
         viewModelScope.launch {
             val baseDir = doc.path?.let { File(it).parent }

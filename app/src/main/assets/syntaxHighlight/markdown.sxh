@@ -1,0 +1,14 @@
+version:1
+name:Markdown
+extensions:md,markdown
+keywords:
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  default:#E6EDF3
+rules:
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

@@ -1,16 +1,14 @@
 version:1
-name:YAML
-extensions:yaml,yml
-keywords:true,false,null,yes,no,on,off
+name:Yaml
+extensions:yml,yaml
+keywords:
 colors:
   keyword:#FF7B72
   string:#A5D6FF
   comment:#8B949E
   number:#79C0FF
-  property:#79C0FF
-  value:#A5D6FF
   default:#E6EDF3
 rules:
-  comment: #.*$
-  string: ".*?"|\'.*?\'
-  number: \b-?\d+(\.\d+)?\b
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

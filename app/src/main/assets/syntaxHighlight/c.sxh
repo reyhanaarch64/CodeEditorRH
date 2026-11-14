@@ -1,18 +1,14 @@
 version:1
 name:C
 extensions:c,h
-keywords:auto,break,case,char,const,continue,default,do,double,else,enum,extern,float,for,goto,if,inline,int,long,register,restrict,return,short,signed,sizeof,static,struct,switch,typedef,union,unsigned,void,volatile,while,_Alignas,_Alignof,_Atomic,_Bool,_Complex,_Generic,_Imaginary,_Noreturn,_Static_assert,_Thread_local
+keywords:int,char,float,double,void,if,else,for,while,return,struct,typedef,include,define,static,const,null
 colors:
   keyword:#FF7B72
   string:#A5D6FF
   comment:#8B949E
   number:#79C0FF
-  operator:#FFA657
-  function:#D2A8FF
-  type:#FFA657
   default:#E6EDF3
 rules:
-  comment: //.*$|/\*.*?\*/
-  string: ".*?"|\'.*?\'
-  number: \b\d+(\.\d+)?([eE][+-]?\d+)?[uUlLfF]*\b
-  operator: [+\-*/%=!<>|&^~?:]+
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

@@ -1,18 +1,14 @@
 version:1
 name:Dart
 extensions:dart
-keywords:abstract,as,assert,async,await,break,case,catch,class,const,continue,covariant,default,deferred,do,dynamic,else,enum,export,extends,extension,external,factory,false,final,finally,for,Function,get,hide,if,implements,import,in,interface,is,late,library,mixin,new,null,on,operator,part,rethrow,return,set,show,static,super,switch,sync,this,throw,true,try,typedef,var,void,while,with,yield
+keywords:void,var,final,const,class,extends,implements,if,else,for,while,return,true,false,null,async,await,import
 colors:
   keyword:#FF7B72
   string:#A5D6FF
   comment:#8B949E
   number:#79C0FF
-  operator:#FFA657
-  function:#D2A8FF
-  type:#FFA657
   default:#E6EDF3
 rules:
-  comment: //.*$|/\*.*?\*/
-  string: r".*?"|r\'.*?\'|".*?"|\'.*?\'
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
   number: \b\d+(\.\d+)?\b
-  operator: [+\-*/%=!<>|&^~?:]+

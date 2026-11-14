@@ -127,9 +127,15 @@ object SyntaxHighlighter {
         return cache[ext.lowercase()]
     }
 
-    fun highlight(text: String, extension: String): AnnotatedString {
-        val rule = getRuleForExtension(extension) ?: return AnnotatedString(text)
-        val defaultColor = rule.colors["default"] ?: Color.White
+    fun highlight(text: String, extension: String, isDark: Boolean = true): AnnotatedString {
+        val fallback = if (isDark) Color(0xFFE8E8ED) else Color(0xFF1C1C1E)
+        val rule = getRuleForExtension(extension)
+        if (rule == null) {
+            return androidx.compose.ui.text.buildAnnotatedString {
+                withStyle(SpanStyle(color = fallback)) { append(text) }
+            }
+        }
+        val defaultColor = rule.colors["default"] ?: fallback
         val keywordColor = rule.colors["keyword"] ?: Color(0xFFFF7B72)
         val stringColor = rule.colors["string"] ?: Color(0xFFA5D6FF)
         val commentColor = rule.colors["comment"] ?: Color(0xFF8B949E)

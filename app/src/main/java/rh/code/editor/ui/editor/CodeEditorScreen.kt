@@ -26,7 +26,8 @@ fun CodeEditorScreen(
     onContentChange: (String) -> Unit,
     onCursorChange: (line: Int, col: Int) -> Unit,
     insertSymbol: String? = null,
-    onSymbolInserted: () -> Unit = {}
+    onSymbolInserted: () -> Unit = {},
+    isDark: Boolean = true
 ) {
     val scrollState = rememberScrollState()
     var textFieldValue by remember(document.id) {
@@ -61,7 +62,7 @@ fun CodeEditorScreen(
     }
 
     val highlighted = remember(textFieldValue.text, document.language) {
-        SyntaxHighlighter.highlight(textFieldValue.text, document.language)
+        SyntaxHighlighter.highlight(textFieldValue.text, document.language, isDark)
     }
 
     val lineCount = remember(textFieldValue.text) {

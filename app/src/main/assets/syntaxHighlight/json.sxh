@@ -1,14 +1,14 @@
 version:1
-name:JSON
+name:Json
 extensions:json
-keywords:true,false,null
+keywords:
 colors:
   keyword:#FF7B72
   string:#A5D6FF
+  comment:#8B949E
   number:#79C0FF
-  property:#79C0FF
-  value:#A5D6FF
   default:#E6EDF3
 rules:
-  string: ".*?"
-  number: \b-?\d+(\.\d+)?([eE][+-]?\d+)?\b
+  string: ".*?"|'.*?'
+  comment: //.*$|#.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CodeEditorTheme {
-                val viewModel: EditorViewModel = viewModel()
+            val viewModel: EditorViewModel = viewModel()
+            CodeEditorTheme(isDark = viewModel.isDarkTheme.value) {
                 val context = LocalContext.current
                 LaunchedEffect(Unit) { viewModel.init(context) }
 
@@ -72,6 +72,11 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     var cursorLine by remember { mutableStateOf(1) }
     var cursorCol by remember { mutableStateOf(1) }
     var pendingSymbol by remember { mutableStateOf<String?>(null) }
+    var showCreateItem by remember { mutableStateOf(false) }
+    var pendingCreateParent by remember { mutableStateOf("") }
+    var pendingCreateIsFolder by remember { mutableStateOf(false) }
+    var showProjectPicker by remember { mutableStateOf(false) }
+    var projectList by remember { mutableStateOf<List<java.io.File>>(emptyList()) }
     var showCreateFile by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
     var newItemName by remember { mutableStateOf("") }
@@ -85,6 +90,14 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 } ?: ""
                 viewModel.openDocument(uri, name, content)
             } catch (e: Exception) { e.printStackTrace() }
+        }
+    }
+
+    
+    val wallpaperPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            viewModel.wallpaperUri.value = uri
+            // crop sederhana: langsung pakai, user bisa ganti lagi
         }
     }
 
@@ -102,7 +115,7 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     }
 
     val isInProject = viewModel.currentProject.value != null
-    val projectTree = remember(viewModel.currentProject.value) { viewModel.listProjectTree() }
+    val projectTree = remember(viewModel.currentProject.value, viewModel.treeVersion.value) { viewModel.listProjectTree() }
 
     BackHandler(enabled = viewModel.drawerOpen.value || viewModel.moreDrawerOpen.value) {
         viewModel.drawerOpen.value = false
@@ -148,7 +161,8 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                         onContentChange = { viewModel.updateContent(activeDoc.id, it) },
                         onCursorChange = { l, c -> cursorLine = l; cursorCol = c },
                         insertSymbol = pendingSymbol,
-                        onSymbolInserted = { pendingSymbol = null }
+                        onSymbolInserted = { pendingSymbol = null },
+                        isDark = viewModel.isDarkTheme.value
                     )
                 }
                 SymbolBar(onSymbolClick = { pendingSymbol = it })
@@ -176,15 +190,19 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             ProjectDrawer(
                 projectName = viewModel.currentProject.value?.name ?: "",
                 tree = projectTree,
+                treeVersion = viewModel.treeVersion.value,
                 onFileClick = { node ->
                     try {
                         val f = File(node.path)
                         viewModel.openDocument(Uri.fromFile(f), node.name, f.readText(), node.path)
-                        // jangan auto-close drawer biar bisa klik banyak file
                     } catch (_: Exception) {}
                 },
-                onCreateFile = { showCreateFile = true },
-                onCreateFolder = { showCreateFolder = true },
+                onCreateInPath = { parentPath, isFolder ->
+                    pendingCreateParent = parentPath
+                    pendingCreateIsFolder = isFolder
+                    newItemName = ""
+                    showCreateItem = true
+                },
                 onExitProject = {
                     viewModel.exitProject()
                     viewModel.drawerOpen.value = false
@@ -235,13 +253,17 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                         viewModel.createNewDocument()
                     }
                     if (!isInProject) {
-                        MenuBtn(Icons.Default.Folder, "Buka Project dari /sdcard/codeEditorRH") {
+                        MenuBtn(Icons.Default.Folder, "Buka Project") {
                             showAddMenu = false
-                            // simple: list first project or create
-                            val root = File("/sdcard/codeEditorRH")
-                            val first = root.listFiles()?.firstOrNull { it.isDirectory }
-                            if (first != null) viewModel.openProject(context, first.absolutePath)
-                            else viewModel.showNewProjectDialog.value = true
+                            val list = viewModel.listAvailableProjects()
+                            when {
+                                list.isEmpty() -> viewModel.showNewProjectDialog.value = true
+                                list.size == 1 -> viewModel.openProject(context, list[0].absolutePath)
+                                else -> {
+                                    projectList = list
+                                    showProjectPicker = true
+                                }
+                            }
                         }
                     }
                 }
@@ -318,18 +340,24 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             title = { Text("Pengaturan Theme", color = TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Mode saat ini: ${viewModel.themeMode.value}", color = TextSecondary, fontSize = 13.sp)
-                    MenuBtn(Icons.Default.DarkMode, "Dark") {
-                        viewModel.themeMode.value = "dark"
+                    Text("Mode: ${if (viewModel.isDarkTheme.value) "Gelap" else "Terang"}", color = TextSecondary, fontSize = 13.sp)
+                    MenuBtn(Icons.Default.DarkMode, "Mode Gelap") {
+                        viewModel.isDarkTheme.value = true
                         showThemeSettings = false
                     }
-                    MenuBtn(Icons.Default.LightMode, "Light (coming)") {
-                        viewModel.themeMode.value = "light"
+                    MenuBtn(Icons.Default.LightMode, "Mode Terang") {
+                        viewModel.isDarkTheme.value = false
                         showThemeSettings = false
                     }
                     MenuBtn(Icons.Default.Wallpaper, "Ubah Wallpaper Editor") {
-                        // placeholder - full crop picker perlu activity tambahan
                         showThemeSettings = false
+                        wallpaperPicker.launch("image/*")
+                    }
+                    if (viewModel.wallpaperUri.value != null) {
+                        MenuBtn(Icons.Default.HideImage, "Hapus Wallpaper") {
+                            viewModel.wallpaperUri.value = null
+                            showThemeSettings = false
+                        }
                     }
                 }
             },
@@ -374,17 +402,17 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
         )
     }
 
-    if (showCreateFile || showCreateFolder) {
-        val isFile = showCreateFile
+    if (showCreateItem) {
+        val isFolder = pendingCreateIsFolder
         AlertDialog(
-            onDismissRequest = { showCreateFile = false; showCreateFolder = false; newItemName = "" },
+            onDismissRequest = { showCreateItem = false; newItemName = "" },
             containerColor = Surface, shape = RoundedCornerShape(20.dp),
-            title = { Text(if (isFile) "Nama File" else "Nama Folder", color = TextPrimary) },
+            title = { Text(if (isFolder) "Nama Folder" else "Nama File", color = TextPrimary) },
             text = {
                 OutlinedTextField(
                     value = newItemName, onValueChange = { newItemName = it },
                     singleLine = true,
-                    placeholder = { Text(if (isFile) "index.js" else "components", color = TextSecondary) },
+                    placeholder = { Text(if (isFolder) "components" else "index.js", color = TextSecondary) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
                         focusedBorderColor = Primary, unfocusedBorderColor = Border, cursorColor = Primary
@@ -394,96 +422,39 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             confirmButton = {
                 TextButton(onClick = {
                     if (newItemName.isNotBlank()) {
-                        if (isFile) viewModel.createFileInProject(newItemName.trim())
-                        else viewModel.createFolderInProject(newItemName.trim())
+                        viewModel.createInProject(pendingCreateParent, newItemName.trim(), isFolder)
                         newItemName = ""
-                        showCreateFile = false
-                        showCreateFolder = false
+                        showCreateItem = false
                     }
                 }) { Text("Buat", color = Primary) }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showCreateFile = false; showCreateFolder = false; newItemName = ""
-                }) { Text("Batal", color = TextSecondary) }
+                TextButton(onClick = { showCreateItem = false; newItemName = "" }) {
+                    Text("Batal", color = TextSecondary)
+                }
             }
         )
     }
-}
 
-@Composable
-fun MoreDrawer(
-    isInProject: Boolean,
-    onSearch: () -> Unit,
-    onLanguage: () -> Unit,
-    onTheme: () -> Unit,
-    onSave: () -> Unit,
-    onExitProject: () -> Unit,
-    onClose: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .width(260.dp)
-            .background(Surface)
-            .padding(14.dp)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Menu", color = TextPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, fontSize = 16.sp)
-            Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(20.dp).clickable { onClose() })
-        }
-        Spacer(Modifier.height(16.dp))
-        DrawerItem(Icons.Default.Search, "Cari Teks", onSearch)
-        DrawerItem(Icons.Default.Code, "Pilih Syntax", onLanguage)
-        DrawerItem(Icons.Default.Palette, "Theme & Wallpaper", onTheme)
-        DrawerItem(Icons.Default.Save, "Save", onSave)
-        if (isInProject) {
-            Spacer(Modifier.height(8.dp))
-            DrawerItem(Icons.Default.Logout, "Keluar Proyek", onExitProject)
-        }
+    if (showProjectPicker) {
+        AlertDialog(
+            onDismissRequest = { showProjectPicker = false },
+            containerColor = Surface, shape = RoundedCornerShape(20.dp),
+            title = { Text("Pilih Project", color = TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    projectList.forEach { proj ->
+                        MenuBtn(Icons.Default.Folder, proj.name) {
+                            showProjectPicker = false
+                            viewModel.openProject(context, proj.absolutePath)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showProjectPicker = false }) { Text("Batal", color = TextSecondary) }
+            }
+        )
     }
-}
-
-@Composable
-fun DrawerItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(label, color = TextPrimary, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun MenuBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceElevated)
-            .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(10.dp))
-        Text(text, color = TextPrimary, fontSize = 14.sp)
-    }
-}
-
-fun getFileName(context: android.content.Context, uri: Uri): String? {
-    var name: String? = null
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) {
-            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (idx >= 0) name = cursor.getString(idx)
-        }
-    }
-    return name
 }

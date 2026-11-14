@@ -2,6 +2,8 @@ package rh.code.editor.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,19 +32,18 @@ fun ProjectDrawer(
     projectName: String,
     tree: List<FileNode>,
     onFileClick: (FileNode) -> Unit,
-    onCreateFile: () -> Unit,
-    onCreateFolder: () -> Unit,
+    onCreateInPath: (parentPath: String, isFolder: Boolean) -> Unit,
     onExitProject: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    treeVersion: Int = 0
 ) {
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(280.dp)
+            .width(300.dp)
             .background(Surface)
             .padding(12.dp)
     ) {
-        // header
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -51,54 +52,74 @@ fun ProjectDrawer(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Folder, null, tint = Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(projectName, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(projectName, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
             }
-            Icon(
-                Icons.Default.Close, "Close",
-                tint = TextSecondary,
-                modifier = Modifier.size(20.dp).clickable { onClose() }
-            )
+            Icon(Icons.Default.Close, "Close", tint = TextSecondary,
+                modifier = Modifier.size(20.dp).clickable { onClose() })
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceElevated)
+                .clickable { onExitProject() }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Logout, null, tint = Error, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Keluar Proyek", color = Error, fontSize = 13.sp)
         }
 
         Spacer(Modifier.height(12.dp))
 
-        // actions
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallAction(Icons.Default.NoteAdd, "File") { onCreateFile() }
-            SmallAction(Icons.Default.CreateNewFolder, "Folder") { onCreateFolder() }
-            SmallAction(Icons.Default.Logout, "Keluar") { onExitProject() }
+        // root + button
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Files", color = TextSecondary, fontSize = 12.sp)
+            Row {
+                Icon(Icons.Default.NoteAdd, "file", tint = Primary,
+                    modifier = Modifier.size(18.dp).clickable {
+                        // create at project root - parent path empty means root, handled outside
+                        onCreateInPath("", false)
+                    })
+                Spacer(Modifier.width(10.dp))
+                Icon(Icons.Default.CreateNewFolder, "folder", tint = Primary,
+                    modifier = Modifier.size(18.dp).clickable {
+                        onCreateInPath("", true)
+                    })
+            }
         }
 
-        Spacer(Modifier.height(12.dp))
-
-        // tree
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(tree) { node ->
-                TreeItem(node, 0, onFileClick)
+        key(treeVersion) {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(tree, key = { it.path }) { node ->
+                    TreeItem(
+                        node = node,
+                        depth = 0,
+                        onFileClick = onFileClick,
+                        onCreateInPath = onCreateInPath
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SmallAction(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(SurfaceElevated)
-            .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(4.dp))
-        Text(label, color = TextPrimary, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun TreeItem(node: FileNode, depth: Int, onFileClick: (FileNode) -> Unit) {
-    var expanded by remember { mutableStateOf(depth < 1) }
+private fun TreeItem(
+    node: FileNode,
+    depth: Int,
+    onFileClick: (FileNode) -> Unit,
+    onCreateInPath: (parentPath: String, isFolder: Boolean) -> Unit
+) {
+    var expanded by remember(node.path) { mutableStateOf(depth < 1) }
     val icon = getFileIcon(node)
     val color = getFileColor(node)
 
@@ -108,10 +129,13 @@ private fun TreeItem(node: FileNode, depth: Int, onFileClick: (FileNode) -> Unit
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .clickable {
-                    if (node.isDirectory) expanded = !expanded
-                    else onFileClick(node)
+                    if (node.isDirectory) {
+                        expanded = !expanded
+                    } else {
+                        onFileClick(node)
+                    }
                 }
-                .padding(start = (depth * 14).dp, top = 6.dp, bottom = 6.dp, end = 6.dp),
+                .padding(start = (depth * 12).dp, top = 5.dp, bottom = 5.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (node.isDirectory) {
@@ -122,16 +146,60 @@ private fun TreeItem(node: FileNode, depth: Int, onFileClick: (FileNode) -> Unit
             } else {
                 Spacer(Modifier.width(16.dp))
             }
-            Spacer(Modifier.width(4.dp))
-            Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(2.dp))
+            Icon(icon, null, tint = color, modifier = Modifier.size(15.dp))
             Spacer(Modifier.width(6.dp))
-            Text(node.name, color = TextPrimary, fontSize = 13.sp, maxLines = 1)
+            Text(
+                node.name,
+                color = TextPrimary,
+                fontSize = 13.sp,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+            // + hanya di folder
+            if (node.isDirectory) {
+                Icon(
+                    Icons.Default.Add, "tambah di folder ini",
+                    tint = TextSecondary,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable {
+                            onCreateInPath(node.path, false) // default file; long-ish bisa folder
+                        }
+                )
+            }
         }
 
-        AnimatedVisibility(visible = expanded && node.isDirectory, enter = expandVertically(), exit = shrinkVertically()) {
+        AnimatedVisibility(
+            visible = expanded && node.isDirectory,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
             Column {
+                // tombol buat file/folder di dalam folder ini
+                if (expanded) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = ((depth + 1) * 12 + 18).dp, top = 2.dp, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "+ file",
+                            color = Primary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.clickable { onCreateInPath(node.path, false) }
+                        )
+                        Text(
+                            "+ folder",
+                            color = Primary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.clickable { onCreateInPath(node.path, true) }
+                        )
+                    }
+                }
                 node.children.forEach { child ->
-                    TreeItem(child, depth + 1, onFileClick)
+                    TreeItem(child, depth + 1, onFileClick, onCreateInPath)
                 }
             }
         }
@@ -142,6 +210,7 @@ private fun getFileIcon(node: FileNode): ImageVector {
     if (node.isDirectory) return Icons.Default.Folder
     return when (node.name.substringAfterLast('.').lowercase()) {
         "js", "jsx", "mjs" -> Icons.Default.Javascript
+        "ts", "tsx" -> Icons.Default.Code
         "html", "htm" -> Icons.Default.Html
         "css", "scss" -> Icons.Default.Css
         "kt", "kts" -> Icons.Default.Code
@@ -152,6 +221,7 @@ private fun getFileIcon(node: FileNode): ImageVector {
         "xml" -> Icons.Default.Code
         "php" -> Icons.Default.Php
         "py" -> Icons.Default.Code
+        "java" -> Icons.Default.Code
         else -> Icons.Default.InsertDriveFile
     }
 }
@@ -160,6 +230,7 @@ private fun getFileColor(node: FileNode): Color {
     if (node.isDirectory) return Primary
     return when (node.name.substringAfterLast('.').lowercase()) {
         "js", "jsx" -> Color(0xFFF7DF1E)
+        "ts", "tsx" -> Color(0xFF3178C6)
         "html", "htm" -> Color(0xFFE34F26)
         "css", "scss" -> Color(0xFF264DE4)
         "kt", "kts" -> Color(0xFF7F52FF)
@@ -167,6 +238,7 @@ private fun getFileColor(node: FileNode): Color {
         "md" -> Color(0xFF519ABA)
         "php" -> Color(0xFF777BB4)
         "py" -> Color(0xFF3572A5)
+        "java" -> Color(0xFFB07219)
         "gitignore" -> Color(0xFFF05033)
         else -> TextSecondary
     }
