@@ -1,0 +1,16 @@
+version:1
+name:Kotlin
+extensions:kt,kts
+keywords:fun,val,var,if,else,when,for,while,do,return,class,object,interface,data,sealed,enum,package,import,as,is,in,out,by,get,set,constructor,init,companion,this,super,true,false,null,try,catch,finally,throw,private,public,protected,internal,override,open,final,abstract,suspend,coroutine
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  string: ".*?"|'.*?'|`.*?`|""".*?"""
+  comment: //.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

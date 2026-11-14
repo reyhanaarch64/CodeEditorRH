@@ -1,0 +1,16 @@
+version:1
+name:JavaScript
+extensions:js,jsx,mjs,cjs
+keywords:var,let,const,function,return,if,else,for,while,do,switch,case,break,continue,try,catch,finally,throw,new,this,class,extends,super,import,export,default,from,async,await,true,false,null,undefined,typeof,instanceof
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  default:#E6EDF3
+rules:
+  string: ".*?"|'.*?'|`.*?`
+  comment: //.*$|/\*.*?\*/
+  number: \b\d+(\.\d+)?\b

@@ -1,0 +1,15 @@
+version:1
+name:HTML
+extensions:html,htm,xhtml
+keywords:html,head,body,title,div,span,p,a,img,ul,ol,li,table,tr,td,th,form,input,button,script,style,link,meta,h1,h2,h3,h4,h5,h6,br,hr,section,article,nav,header,footer,main
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  tag:#7EE787
+  attr:#79C0FF
+  default:#E6EDF3
+rules:
+  comment: <!--.*?-->
+  string: ".*?"|'.*?'
+  tag: </?[a-zA-Z][a-zA-Z0-9]*
