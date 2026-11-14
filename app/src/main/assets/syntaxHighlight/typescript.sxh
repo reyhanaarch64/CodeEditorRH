@@ -1,14 +1,14 @@
-version:1
-name:Typescript
-extensions:ts,tsx
-keywords:var,let,const,function,return,if,else,for,while,class,interface,type,import,export,from,async,await,true,false,null,undefined
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang TypeScript {
+ext ts tsx
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword var let const function return if else for while class interface type import export from async await true false null undefined typeof instanceof
+match string /"(?:[^"\\]|\\.)*"/
+match string /'(?:[^'\\]|\\.)*'/
+match comment /\/\/.*$/
+match number /\b\d+(\.\d+)?\b/
+}

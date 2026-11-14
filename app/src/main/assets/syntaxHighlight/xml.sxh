@@ -1,14 +1,11 @@
-version:1
-name:Xml
-extensions:xml,xsl,svg
-keywords:
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang XML {
+ext xml xsl svg
+color tag #7EE787
+color string #A5D6FF
+color comment #8B949E
+color default #E6EDF3
+match comment /<!--[\s\S]*?-->/
+match string /"(?:[^"\\]|\\.)*"/
+match tag /<\/?[A-Za-z][A-Za-z0-9:_-]*/
+}

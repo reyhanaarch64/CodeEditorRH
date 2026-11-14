@@ -1,5 +1,9 @@
 package rh.code.editor.ui.editor
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,7 +31,8 @@ fun CodeEditorScreen(
     onCursorChange: (line: Int, col: Int) -> Unit,
     insertSymbol: String? = null,
     onSymbolInserted: () -> Unit = {},
-    isDark: Boolean = true
+    isDark: Boolean = true,
+    wallpaperUri: android.net.Uri? = null
 ) {
     val scrollState = rememberScrollState()
     var textFieldValue by remember(document.id) {
@@ -61,7 +66,7 @@ fun CodeEditorScreen(
         onCursorChange(line, col)
     }
 
-    val highlighted = remember(textFieldValue.text, document.language) {
+    val highlighted = remember(textFieldValue.text, document.language, isDark) {
         SyntaxHighlighter.highlight(textFieldValue.text, document.language, isDark)
     }
 
@@ -108,10 +113,27 @@ fun CodeEditorScreen(
         onContentChange(newText)
     }
 
+    Box(modifier = Modifier.fillMaxSize().background(Background)) {
+        // wallpaper layer
+        wallpaperUri?.let { uri ->
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val bmp = remember(uri) {
+                try {
+                    ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                } catch (_: Exception) { null }
+            }
+            bmp?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    alpha = 0.25f
+                )
+            }
+        }
     Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
+        modifier = Modifier.fillMaxSize()
     ) {
         // line numbers
         Column(
@@ -165,5 +187,6 @@ fun CodeEditorScreen(
                 }
             )
         }
+    }
     }
 }

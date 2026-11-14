@@ -1,16 +1,13 @@
-version:1
-name:CSS
-extensions:css,scss,sass
-keywords:color,background,margin,padding,border,font,display,flex,grid,position,width,height,top,left,right,bottom,media,import,keyframes,animation,transition
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  property:#79C0FF
-  value:#A5D6FF
-  selector:#D2A8FF
-  default:#E6EDF3
-rules:
-  comment: /\*.*?\*/
-  string: ".*?"|'.*?'
-  number: \b\d+(\.\d+)?(px|em|rem|%|vh|vw)?\b
+// version 2
+lang CSS {
+ext css scss sass
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword color background margin padding border font display flex grid position width height top left right bottom media import keyframes animation transition
+match comment /\/\*[\s\S]*?\*\//
+match string /"(?:[^"\\]|\\.)*"/
+match number /\b\d+(\.\d+)?(px|em|rem|%|vh|vw)?\b/
+}

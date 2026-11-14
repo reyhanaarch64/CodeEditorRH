@@ -1,14 +1,13 @@
-version:1
-name:Go
-extensions:go
-keywords:func,package,import,var,const,type,struct,interface,map,chan,if,else,for,range,return,go,defer,select,switch,case,break,continue,true,false,nil
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang Go {
+ext go
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword func package import var const type struct interface map chan if else for range return go defer select switch case break continue true false nil
+match string /"(?:[^"\\]|\\.)*"/
+match comment /\/\/.*$/
+match number /\b\d+(\.\d+)?\b/
+}

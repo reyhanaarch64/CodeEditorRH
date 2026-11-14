@@ -1,15 +1,16 @@
-version:1
-name:HTML
-extensions:html,htm,xhtml
-keywords:html,head,body,title,div,span,p,a,img,ul,ol,li,table,tr,td,th,form,input,button,script,style,link,meta,h1,h2,h3,h4,h5,h6,br,hr,section,article,nav,header,footer,main
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  tag:#7EE787
-  attr:#79C0FF
-  default:#E6EDF3
-rules:
-  comment: <!--.*?-->
-  string: ".*?"|'.*?'
-  tag: </?[a-zA-Z][a-zA-Z0-9]*
+// version 2
+lang HTML {
+ext html htm xhtml
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color tag #7EE787
+color default #E6EDF3
+keyword html head body title div span p a img ul ol li table tr td th form input button script style link meta h1 h2 h3 h4 h5 h6 br hr section article nav header footer main
+match comment /<!--[\s\S]*?-->/
+match string /"(?:[^"\\]|\\.)*"/
+match string /'(?:[^'\\]|\\.)*'/
+match tag /<\/?[A-Za-z][A-Za-z0-9]*/
+region script <script> </script> JavaScript
+region style <style> </style> CSS
+}

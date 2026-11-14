@@ -1,14 +1,11 @@
-version:1
-name:Json
-extensions:json
-keywords:
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang JSON {
+ext json
+color string #A5D6FF
+color number #79C0FF
+color keyword #FF7B72
+color default #E6EDF3
+keyword true false null
+match string /"(?:[^"\\]|\\.)*"/
+match number /-?\b\d+(\.\d+)?\b/
+}

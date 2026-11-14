@@ -1,14 +1,13 @@
-version:1
-name:Sql
-extensions:sql
-keywords:SELECT,FROM,WHERE,INSERT,UPDATE,DELETE,CREATE,TABLE,JOIN,ON,AS,AND,OR,NOT,NULL,ORDER,BY,GROUP,HAVING,LIMIT
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang SQL {
+ext sql
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword SELECT FROM WHERE INSERT UPDATE DELETE CREATE TABLE JOIN ON AS AND OR NOT NULL ORDER BY GROUP HAVING LIMIT
+match string /'(?:[^'\\]|\\.)*'/
+match comment /--.*$/
+match number /\b\d+(\.\d+)?\b/
+}

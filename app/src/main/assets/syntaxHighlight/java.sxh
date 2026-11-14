@@ -1,14 +1,13 @@
-version:1
-name:Java
-extensions:java
-keywords:public,private,protected,class,interface,extends,implements,static,final,void,int,long,float,double,boolean,if,else,for,while,return,new,this,super,try,catch,finally,throw,throws,import,package,true,false,null
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang Java {
+ext java
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword public private protected class interface extends implements static final void int long float double boolean if else for while return new this super try catch finally throw throws import package true false null
+match string /"(?:[^"\\]|\\.)*"/
+match comment /\/\/.*$/
+match number /\b\d+(\.\d+)?\b/
+}

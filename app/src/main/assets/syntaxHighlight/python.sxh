@@ -1,14 +1,14 @@
-version:1
-name:Python
-extensions:py,pyw
-keywords:def,class,import,from,as,if,elif,else,for,while,return,True,False,None,with,try,except,finally,raise,lambda,yield,async,await,pass,break,continue,and,or,not,in,is,global,nonlocal
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang Python {
+ext py pyw
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword def class import from as if elif else for while return True False None with try except finally raise lambda yield async await pass break continue and or not in is global nonlocal
+match string /"(?:[^"\\]|\\.)*"/
+match string /'(?:[^'\\]|\\.)*'/
+match comment /#.*$/
+match number /\b\d+(\.\d+)?\b/
+}

@@ -1,14 +1,15 @@
-version:1
-name:Php
-extensions:php
-keywords:function,class,public,private,protected,static,return,if,else,elseif,for,foreach,while,echo,print,new,this,try,catch,finally,throw,namespace,use,const,var,true,false,null,array
-colors:
-  keyword:#FF7B72
-  string:#A5D6FF
-  comment:#8B949E
-  number:#79C0FF
-  default:#E6EDF3
-rules:
-  string: ".*?"|'.*?'
-  comment: //.*$|#.*$|/\*.*?\*/
-  number: \b\d+(\.\d+)?\b
+// version 2
+lang PHP {
+ext php
+color keyword #FF7B72
+color string #A5D6FF
+color comment #8B949E
+color number #79C0FF
+color default #E6EDF3
+keyword function class public private protected static return if else elseif for foreach while echo print new this try catch finally throw namespace use const var true false null array
+match string /"(?:[^"\\]|\\.)*"/
+match string /'(?:[^'\\]|\\.)*'/
+match comment /\/\/.*$/
+match comment /#.*$/
+match number /\b\d+(\.\d+)?\b/
+}

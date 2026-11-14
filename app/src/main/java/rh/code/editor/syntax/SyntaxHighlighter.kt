@@ -8,231 +8,308 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.regex.Pattern
 
-data class SyntaxRule(
-    val version: Int,
+data class MatchRule(
+    val name: String,
+    val pattern: Pattern,
+    val color: Color
+)
+
+data class RegionRule(
+    val start: String,
+    val end: String,
+    val lang: String
+)
+
+data class SyntaxRuleV2(
     val name: String,
     val extensions: List<String>,
-    val keywords: Set<String>,
     val colors: Map<String, Color>,
-    val rules: Map<String, String>
+    val keywords: Set<String>,
+    val matches: List<MatchRule>,
+    val regions: List<RegionRule>
 )
 
 object SyntaxHighlighter {
 
-    private val cache = mutableMapOf<String, SyntaxRule>()
+    private val cache = mutableMapOf<String, SyntaxRuleV2>()
+    private var loaded = false
 
     fun loadRules(context: Context) {
-        if (cache.isNotEmpty()) return
+        cache.clear()
+        loaded = false
         try {
-            val assets = context.assets.list("syntaxHighlight") ?: return
-            for (file in assets) {
+            val files = context.assets.list("syntaxHighlight") ?: return
+            for (file in files) {
                 if (!file.endsWith(".sxh")) continue
-                val rule = parseSxh(context, "syntaxHighlight/$file")
+                val rule = parseV2(context, "syntaxHighlight/$file")
                 if (rule != null) {
                     for (ext in rule.extensions) {
                         cache[ext.lowercase()] = rule
                     }
+                    cache[rule.name.lowercase()] = rule
                 }
             }
+            loaded = true
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun parseSxh(context: Context, path: String): SyntaxRule? {
+    private fun parseColor(hex: String): Color {
+        return try {
+            val clean = hex.trim().removePrefix("#")
+            val v = clean.toLong(16)
+            if (clean.length == 6) Color(0xFF000000 or v) else Color(v)
+        } catch (_: Exception) {
+            Color.White
+        }
+    }
+
+    /** Format v2 - custom language, bukan yaml */
+    private fun parseV2(context: Context, path: String): SyntaxRuleV2? {
         try {
-            val input = context.assets.open(path)
-            val reader = BufferedReader(InputStreamReader(input))
-            var version = 1
+            val text = context.assets.open(path).bufferedReader().use { it.readText() }
+            if (!text.contains("lang ") && !text.contains("version 2")) {
+                // skip file v1 lama
+                return null
+            }
+
             var name = "Unknown"
             val extensions = mutableListOf<String>()
-            val keywords = mutableSetOf<String>()
             val colors = mutableMapOf<String, Color>()
-            val rules = mutableMapOf<String, String>()
-            var section = ""
+            val keywords = mutableSetOf<String>()
+            val matches = mutableListOf<MatchRule>()
+            val regions = mutableListOf<RegionRule>()
 
-            reader.forEachLine { line ->
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith("#")) return@forEachLine
+            val lines = text.lines()
+            var i = 0
+            while (i < lines.size) {
+                val raw = lines[i].trim()
+                i++
+                if (raw.isEmpty() || raw.startsWith("//") || raw.startsWith("#")) continue
 
                 when {
-                    trimmed.startsWith("version:") -> {
-                        version = trimmed.removePrefix("version:").trim().toIntOrNull() ?: 1
+                    raw.startsWith("lang ") -> {
+                        // lang JavaScript {
+                        name = raw.removePrefix("lang ").substringBefore("{").trim()
                     }
-                    trimmed.startsWith("name:") -> {
-                        name = trimmed.removePrefix("name:").trim()
-                    }
-                    trimmed.startsWith("extensions:") -> {
+                    raw.startsWith("ext ") -> {
                         extensions.addAll(
-                            trimmed.removePrefix("extensions:")
-                                .split(",")
-                                .map { it.trim().lowercase() }
-                                .filter { it.isNotEmpty() }
+                            raw.removePrefix("ext ").split(Regex("\\s+")).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
                         )
                     }
-                    trimmed.startsWith("keywords:") -> {
+                    raw.startsWith("color ") -> {
+                        // color keyword #FF7B72
+                        val parts = raw.removePrefix("color ").trim().split(Regex("\\s+"))
+                        if (parts.size >= 2) colors[parts[0]] = parseColor(parts[1])
+                    }
+                    raw.startsWith("keyword ") -> {
                         keywords.addAll(
-                            trimmed.removePrefix("keywords:")
-                                .split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
+                            raw.removePrefix("keyword ").split(Regex("\\s+|,")).map { it.trim() }.filter { it.isNotEmpty() }
                         )
                     }
-                    trimmed.startsWith("colors:") -> {
-                        section = "colors"
-                    }
-                    trimmed.startsWith("rules:") -> {
-                        section = "rules"
-                    }
-                    section == "colors" && trimmed.contains(":") -> {
-                        val parts = trimmed.split(":", limit = 2)
-                        if (parts.size == 2) {
-                            val key = parts[0].trim()
-                            val colorStr = parts[1].trim()
-                            colors[key] = parseColor(colorStr)
+                    raw.startsWith("match ") -> {
+                        // match string /regex/
+                        val rest = raw.removePrefix("match ").trim()
+                        val namePart = rest.substringBefore(" ").trim()
+                        val regexPart = rest.substringAfter(" ").trim()
+                        if (regexPart.startsWith("/") && regexPart.length > 2) {
+                            val body = regexPart.removePrefix("/").let {
+                                if (it.endsWith("/")) it.dropLast(1) else it
+                            }
+                            try {
+                                val color = colors[namePart] ?: colors["default"] ?: Color.White
+                                matches.add(MatchRule(namePart, Pattern.compile(body), color))
+                            } catch (_: Exception) {}
                         }
                     }
-                    section == "rules" && trimmed.contains(":") -> {
-                        val parts = trimmed.split(":", limit = 2)
-                        if (parts.size == 2) {
-                            rules[parts[0].trim()] = parts[1].trim()
+                    raw.startsWith("region ") -> {
+                        // region script <script> </script> JavaScript
+                        val rest = raw.removePrefix("region ").trim()
+                        val tokens = tokenizeRegion(rest)
+                        if (tokens.size >= 4) {
+                            regions.add(RegionRule(tokens[1], tokens[2], tokens[3]))
                         }
                     }
                 }
             }
-            reader.close()
-            return SyntaxRule(version, name, extensions, keywords, colors, rules)
+
+            if (extensions.isEmpty() && name != "Unknown") {
+                extensions.add(name.lowercase())
+            }
+            return SyntaxRuleV2(name, extensions, colors, keywords, matches, regions)
         } catch (e: Exception) {
             e.printStackTrace()
             return null
         }
     }
 
-    private fun parseColor(hex: String): Color {
-        return try {
-            val clean = hex.removePrefix("#")
-            val colorLong = clean.toLong(16)
-            if (clean.length == 6) {
-                Color(0xFF000000 or colorLong)
+    private fun tokenizeRegion(s: String): List<String> {
+        // region name <start> <end> LangName
+        val result = mutableListOf<String>()
+        var i = 0
+        while (i < s.length) {
+            while (i < s.length && s[i].isWhitespace()) i++
+            if (i >= s.length) break
+            if (s[i] == '<') {
+                val end = s.indexOf('>', i)
+                if (end > i) {
+                    result.add(s.substring(i, end + 1))
+                    i = end + 1
+                } else break
             } else {
-                Color(colorLong)
+                val start = i
+                while (i < s.length && !s[i].isWhitespace()) i++
+                result.add(s.substring(start, i))
             }
-        } catch (e: Exception) {
-            Color.White
         }
+        return result
     }
 
-    fun getRuleForExtension(ext: String): SyntaxRule? {
-        return cache[ext.lowercase()]
+    fun getRuleForExtension(ext: String): SyntaxRuleV2? = cache[ext.lowercase()]
+
+    fun detectLanguage(fileName: String): String {
+        val ext = fileName.substringAfterLast('.', "").lowercase()
+        return if (cache.containsKey(ext)) ext else "plaintext"
     }
 
     fun highlight(text: String, extension: String, isDark: Boolean = true): AnnotatedString {
         val fallback = if (isDark) Color(0xFFE8E8ED) else Color(0xFF1C1C1E)
         val rule = getRuleForExtension(extension)
+            ?: getRuleForExtension(extension.substringAfterLast('.'))
+
         if (rule == null) {
-            return androidx.compose.ui.text.buildAnnotatedString {
+            return buildAnnotatedString {
                 withStyle(SpanStyle(color = fallback)) { append(text) }
             }
         }
+
+        // handle regions dulu (html script/style dll)
+        if (rule.regions.isNotEmpty()) {
+            return highlightWithRegions(text, rule, isDark, fallback)
+        }
+
+        return highlightPlain(text, rule, fallback)
+    }
+
+    private fun highlightWithRegions(
+        text: String,
+        rule: SyntaxRuleV2,
+        isDark: Boolean,
+        fallback: Color
+    ): AnnotatedString {
+        return buildAnnotatedString {
+            var pos = 0
+            val lower = text
+
+            while (pos < text.length) {
+                var nearest: RegionRule? = null
+                var nearestIdx = Int.MAX_VALUE
+
+                for (r in rule.regions) {
+                    val idx = lower.indexOf(r.start, pos, ignoreCase = true)
+                    if (idx >= 0 && idx < nearestIdx) {
+                        nearestIdx = idx
+                        nearest = r
+                    }
+                }
+
+                if (nearest == null) {
+                    // sisa pakai rule utama
+                    appendHighlighted(text.substring(pos), rule, fallback)
+                    break
+                }
+
+                // sebelum region
+                if (nearestIdx > pos) {
+                    appendHighlighted(text.substring(pos, nearestIdx), rule, fallback)
+                }
+
+                val endTag = nearest.end
+                val contentStart = nearestIdx + nearest.start.length
+                val endIdx = lower.indexOf(endTag, contentStart, ignoreCase = true)
+
+                if (endIdx < 0) {
+                    // tag penutup tidak ketemu
+                    appendHighlighted(text.substring(nearestIdx), rule, fallback)
+                    break
+                }
+
+                // tag buka
+                withStyle(SpanStyle(color = rule.colors["tag"] ?: rule.colors["keyword"] ?: fallback)) {
+                    append(text.substring(nearestIdx, contentStart))
+                }
+
+                // isi region → bahasa lain
+                val inner = text.substring(contentStart, endIdx)
+                val innerRule = getRuleForExtension(nearest.lang.lowercase())
+                    ?: cache[nearest.lang.lowercase()]
+                if (innerRule != null) {
+                    appendHighlighted(inner, innerRule, fallback)
+                } else {
+                    withStyle(SpanStyle(color = fallback)) { append(inner) }
+                }
+
+                // tag tutup
+                val afterEnd = endIdx + endTag.length
+                withStyle(SpanStyle(color = rule.colors["tag"] ?: rule.colors["keyword"] ?: fallback)) {
+                    append(text.substring(endIdx, afterEnd))
+                }
+                pos = afterEnd
+            }
+        }
+    }
+
+    private fun AnnotatedString.Builder.appendHighlighted(text: String, rule: SyntaxRuleV2, fallback: Color) {
         val defaultColor = rule.colors["default"] ?: fallback
         val keywordColor = rule.colors["keyword"] ?: Color(0xFFFF7B72)
-        val stringColor = rule.colors["string"] ?: Color(0xFFA5D6FF)
-        val commentColor = rule.colors["comment"] ?: Color(0xFF8B949E)
+        val spans = Array(text.length) { defaultColor }
 
-        return buildAnnotatedString {
-            val lines = text.split("\n")
-            lines.forEachIndexed { index, line ->
-                highlightLine(line, rule, keywordColor, stringColor, commentColor, defaultColor)
-                if (index < lines.size - 1) {
-                    append("\n")
+        // regex matches
+        for (m in rule.matches) {
+            val matcher = m.pattern.matcher(text)
+            while (matcher.find()) {
+                val s = matcher.start()
+                val e = matcher.end()
+                for (i in s until e) {
+                    if (i < spans.size) spans[i] = m.color
                 }
             }
         }
-    }
 
-    private fun AnnotatedString.Builder.highlightLine(
-        line: String,
-        rule: SyntaxRule,
-        keywordColor: Color,
-        stringColor: Color,
-        commentColor: Color,
-        defaultColor: Color
-    ) {
-        // simple tokenizer for version 1
+        // keywords (word boundary)
+        if (rule.keywords.isNotEmpty()) {
+            val word = Pattern.compile("\\b[A-Za-z_][A-Za-z0-9_]*\\b")
+            val matcher = word.matcher(text)
+            while (matcher.find()) {
+                val w = matcher.group()
+                if (rule.keywords.contains(w)) {
+                    for (i in matcher.start() until matcher.end()) {
+                        if (i < spans.size && spans[i] == defaultColor) {
+                            spans[i] = keywordColor
+                        }
+                    }
+                }
+            }
+        }
+
         var i = 0
-        val length = line.length
-
-        while (i < length) {
-            // check comment
-            if (line.startsWith("//", i)) {
-                withStyle(SpanStyle(color = commentColor)) {
-                    append(line.substring(i))
-                }
-                return
+        while (i < text.length) {
+            val c = spans[i]
+            var j = i + 1
+            while (j < text.length && spans[j] == c) j++
+            withStyle(SpanStyle(color = c)) {
+                append(text.substring(i, j))
             }
-            if (line.startsWith("/*", i)) {
-                val end = line.indexOf("*/", i + 2)
-                if (end >= 0) {
-                    withStyle(SpanStyle(color = commentColor)) {
-                        append(line.substring(i, end + 2))
-                    }
-                    i = end + 2
-                    continue
-                } else {
-                    withStyle(SpanStyle(color = commentColor)) {
-                        append(line.substring(i))
-                    }
-                    return
-                }
-            }
-
-            // check string
-            if (line[i] == '"' || line[i] == '\'' || line[i] == '`') {
-                val quote = line[i]
-                var j = i + 1
-                while (j < length && line[j] != quote) {
-                    if (line[j] == '\\' && j + 1 < length) j++
-                    j++
-                }
-                if (j < length) j++
-                withStyle(SpanStyle(color = stringColor)) {
-                    append(line.substring(i, j))
-                }
-                i = j
-                continue
-            }
-
-            // check word (keyword)
-            if (line[i].isLetter() || line[i] == '_') {
-                var j = i + 1
-                while (j < length && (line[j].isLetterOrDigit() || line[j] == '_')) {
-                    j++
-                }
-                val word = line.substring(i, j)
-                if (rule.keywords.contains(word)) {
-                    withStyle(SpanStyle(color = keywordColor)) {
-                        append(word)
-                    }
-                } else {
-                    withStyle(SpanStyle(color = defaultColor)) {
-                        append(word)
-                    }
-                }
-                i = j
-                continue
-            }
-
-            // default char
-            withStyle(SpanStyle(color = defaultColor)) {
-                append(line[i])
-            }
-            i++
+            i = j
         }
     }
 
-    fun detectLanguage(fileName: String): String {
-        val ext = fileName.substringAfterLast('.', "").lowercase()
-        return if (cache.containsKey(ext)) ext else "plaintext"
+    private fun highlightPlain(text: String, rule: SyntaxRuleV2, fallback: Color): AnnotatedString {
+        return buildAnnotatedString {
+            appendHighlighted(text, rule, fallback)
+        }
     }
 }

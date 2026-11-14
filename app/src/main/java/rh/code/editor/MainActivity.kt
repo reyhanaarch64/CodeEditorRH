@@ -76,6 +76,8 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     var pendingCreateParent by remember { mutableStateOf("") }
     var pendingCreateIsFolder by remember { mutableStateOf(false) }
     var showProjectPicker by remember { mutableStateOf(false) }
+    var showWallpaperCrop by remember { mutableStateOf(false) }
+    var pendingWallpaperUri by remember { mutableStateOf<Uri?>(null) }
     var projectList by remember { mutableStateOf<List<java.io.File>>(emptyList()) }
     var showCreateFile by remember { mutableStateOf(false) }
     var showCreateFolder by remember { mutableStateOf(false) }
@@ -96,8 +98,8 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     
     val wallpaperPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            viewModel.wallpaperUri.value = uri
-            // crop sederhana: langsung pakai, user bisa ganti lagi
+            pendingWallpaperUri = uri
+            showWallpaperCrop = true
         }
     }
 
@@ -116,6 +118,23 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
 
     val isInProject = viewModel.currentProject.value != null
     val projectTree = remember(viewModel.currentProject.value, viewModel.treeVersion.value) { viewModel.listProjectTree() }
+
+
+    if (showWallpaperCrop && pendingWallpaperUri != null) {
+        WallpaperCropScreen(
+            sourceUri = pendingWallpaperUri!!,
+            onCancel = {
+                showWallpaperCrop = false
+                pendingWallpaperUri = null
+            },
+            onCropped = { cropped ->
+                viewModel.wallpaperUri.value = cropped
+                showWallpaperCrop = false
+                pendingWallpaperUri = null
+            }
+        )
+        return
+    }
 
     BackHandler(enabled = viewModel.drawerOpen.value || viewModel.moreDrawerOpen.value) {
         viewModel.drawerOpen.value = false
@@ -162,7 +181,8 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                         onCursorChange = { l, c -> cursorLine = l; cursorCol = c },
                         insertSymbol = pendingSymbol,
                         onSymbolInserted = { pendingSymbol = null },
-                        isDark = viewModel.isDarkTheme.value
+                        isDark = viewModel.isDarkTheme.value,
+                        wallpaperUri = viewModel.wallpaperUri.value
                     )
                 }
                 SymbolBar(onSymbolClick = { pendingSymbol = it })
