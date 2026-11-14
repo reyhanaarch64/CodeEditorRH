@@ -1,0 +1,18 @@
+version:1
+name:C#
+extensions:cs
+keywords:abstract,as,async,await,bool,break,byte,case,catch,char,checked,class,const,continue,decimal,default,delegate,do,double,else,enum,event,explicit,extern,false,finally,fixed,float,for,foreach,goto,if,implicit,in,int,interface,internal,is,lock,long,namespace,new,null,object,operator,out,override,params,private,protected,public,readonly,ref,return,sbyte,sealed,short,sizeof,stackalloc,static,string,struct,switch,this,throw,true,try,typeof,uint,ulong,unchecked,unsafe,ushort,using,virtual,void,volatile,while,record,init,global,required
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|/\*.*?\*/
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?[fFdDmMuUlL]*\b
+  operator: [+\-*/%=!<>|&^~?:]+

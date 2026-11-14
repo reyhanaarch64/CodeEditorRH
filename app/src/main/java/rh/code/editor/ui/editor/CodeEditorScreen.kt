@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
@@ -32,30 +33,24 @@ fun CodeEditorScreen(
         mutableStateOf(TextFieldValue(document.content))
     }
 
-    // sync external content change
     LaunchedEffect(document.content) {
         if (document.content != textFieldValue.text) {
             textFieldValue = textFieldValue.copy(text = document.content)
         }
     }
 
-    // insert symbol from bottom bar
     LaunchedEffect(insertSymbol) {
         if (!insertSymbol.isNullOrEmpty()) {
             val tf = textFieldValue
             val start = tf.selection.min
             val newText = tf.text.substring(0, start) + insertSymbol + tf.text.substring(tf.selection.max)
             val newCursor = start + insertSymbol.length
-            textFieldValue = TextFieldValue(
-                text = newText,
-                selection = androidx.compose.ui.text.TextRange(newCursor)
-            )
+            textFieldValue = TextFieldValue(text = newText, selection = TextRange(newCursor))
             onContentChange(newText)
             onSymbolInserted()
         }
     }
 
-    // update cursor info
     LaunchedEffect(textFieldValue.selection) {
         val pos = textFieldValue.selection.start
         val textBefore = textFieldValue.text.substring(0, pos.coerceAtMost(textFieldValue.text.length))
@@ -73,6 +68,45 @@ fun CodeEditorScreen(
         textFieldValue.text.count { it == '\n' } + 1
     }
 
+    fun handleValueChange(newValue: TextFieldValue) {
+        val oldText = textFieldValue.text
+        val newText = newValue.text
+        val cursor = newValue.selection.start
+
+        // auto-pair quotes
+        if (newText.length == oldText.length + 1 && cursor > 0) {
+            val inserted = newText.getOrNull(cursor - 1)
+            if (inserted == '"' || inserted == '\'' || inserted == '`') {
+                // jangan double kalau sudah ada penutup di kanan
+                val nextChar = newText.getOrNull(cursor)
+                if (nextChar != inserted) {
+                    val paired = newText.substring(0, cursor) + inserted + newText.substring(cursor)
+                    textFieldValue = TextFieldValue(
+                        text = paired,
+                        selection = TextRange(cursor)
+                    )
+                    onContentChange(paired)
+                    return
+                }
+            }
+            // auto-pair brackets
+            val pairs = mapOf('(' to ')', '[' to ']', '{' to '}')
+            if (inserted != null && pairs.containsKey(inserted)) {
+                val close = pairs[inserted]!!
+                val nextChar = newText.getOrNull(cursor)
+                if (nextChar != close) {
+                    val paired = newText.substring(0, cursor) + close + newText.substring(cursor)
+                    textFieldValue = TextFieldValue(text = paired, selection = TextRange(cursor))
+                    onContentChange(paired)
+                    return
+                }
+            }
+        }
+
+        textFieldValue = newValue
+        onContentChange(newText)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -81,43 +115,35 @@ fun CodeEditorScreen(
         // line numbers
         Column(
             modifier = Modifier
-                .width(42.dp)
+                .width(40.dp)
                 .fillMaxHeight()
                 .background(Surface)
                 .verticalScroll(scrollState)
-                .padding(top = 12.dp, end = 6.dp),
+                .padding(top = 12.dp, end = 4.dp),
             horizontalAlignment = androidx.compose.ui.Alignment.End
         ) {
             for (i in 1..lineCount) {
                 Text(
                     text = i.toString(),
                     color = LineNumber,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 20.sp
                 )
             }
         }
 
-        // editor
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
             BasicTextField(
                 value = textFieldValue,
-                onValueChange = {
-                    textFieldValue = it
-                    onContentChange(it.text)
-                },
+                onValueChange = { handleValueChange(it) },
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(start = 8.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+                    .padding(start = 6.dp, top = 12.dp, end = 10.dp, bottom = 12.dp),
                 textStyle = TextStyle(
                     color = Color.Transparent,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 20.sp
                 ),
@@ -127,7 +153,7 @@ fun CodeEditorScreen(
                         Text(
                             text = highlighted,
                             style = TextStyle(
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontFamily = FontFamily.Monospace,
                                 lineHeight = 20.sp
                             ),

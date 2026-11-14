@@ -1,6 +1,8 @@
 package rh.code.editor.ui.preview
 
 import android.annotation.SuppressLint
+import android.webkit.CookieManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -28,11 +30,7 @@ fun PreviewScreen(
     session: PreviewSession,
     onBack: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().background(Background)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -48,46 +46,37 @@ fun PreviewScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(Icons.Default.ArrowBack, "Back", tint = TextPrimary, modifier = Modifier.size(22.dp))
             }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Preview",
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = session.url,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
+                Text("Preview + Eruda", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(session.url, color = TextSecondary, fontSize = 12.sp, maxLines = 1)
             }
         }
 
         AndroidView(
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.allowFileAccess = false
-                    settings.allowContentAccess = false
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        databaseEnabled = true
+                        allowFileAccess = false
+                        allowContentAccess = false
+                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        cacheMode = WebSettings.LOAD_DEFAULT
+                        setSupportZoom(true)
+                        builtInZoomControls = true
+                        displayZoomControls = false
+                    }
+                    CookieManager.getInstance().setAcceptCookie(true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webViewClient = WebViewClient()
                     loadUrl(session.url)
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f)
+            modifier = Modifier.fillMaxSize().weight(1f)
         )
     }
 }

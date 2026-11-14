@@ -1,0 +1,18 @@
+version:1
+name:PHP
+extensions:php,phtml
+keywords:__halt_compiler,abstract,and,array,as,break,callable,case,catch,class,clone,const,continue,declare,default,do,echo,else,elseif,empty,enddeclare,endfor,endforeach,endif,endswitch,endwhile,enum,eval,exit,extends,final,finally,fn,for,foreach,function,global,goto,if,implements,include,include_once,instanceof,insteadof,interface,isset,list,match,namespace,new,or,print,private,protected,public,readonly,require,require_once,return,static,switch,throw,trait,true,false,null,try,unset,use,var,while,xor,yield
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|#.*$|/\*.*?\*/
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~?:]+

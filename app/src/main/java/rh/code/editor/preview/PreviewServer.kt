@@ -1,12 +1,15 @@
 package rh.code.editor.preview
 
+import android.content.Context
 import fi.iki.elonen.NanoHTTPD
 import java.io.ByteArrayInputStream
+import java.io.File
 
 class PreviewServer(
     private val htmlSnapshot: String,
-    private val baseDir: String? = null
-) : NanoHTTPD(0) { // port 0 = OS pilih
+    private val baseDir: String? = null,
+    private val context: Context? = null
+) : NanoHTTPD(0) {
 
     var actualPort: Int = 0
         private set
@@ -19,17 +22,33 @@ class PreviewServer(
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
 
+        // serve eruda
+        if (uri == "/__eruda.min.js" && context != null) {
+            try {
+                val bytes = context.assets.open("libs/eruda.min.js").readBytes()
+                return newFixedLengthResponse(
+                    Response.Status.OK,
+                    "application/javascript",
+                    ByteArrayInputStream(bytes),
+                    bytes.size.toLong()
+                )
+            } catch (e: Exception) {
+                return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "eruda not found")
+            }
+        }
+
         return if (uri == "/" || uri == "/index.html") {
+            // inject eruda
+            val injected = injectEruda(htmlSnapshot)
             newFixedLengthResponse(
                 Response.Status.OK,
                 "text/html; charset=utf-8",
-                htmlSnapshot
+                injected
             )
         } else {
-            // try relative asset if baseDir provided
             if (baseDir != null) {
                 try {
-                    val file = java.io.File(baseDir, uri.removePrefix("/"))
+                    val file = File(baseDir, uri.removePrefix("/"))
                     if (file.exists() && file.isFile) {
                         val mime = getMimeType(file.name)
                         val bytes = file.readBytes()
@@ -40,15 +59,21 @@ class PreviewServer(
                             bytes.size.toLong()
                         )
                     }
-                } catch (e: Exception) {
-                    // fall through
-                }
+                } catch (_: Exception) {}
             }
-            newFixedLengthResponse(
-                Response.Status.NOT_FOUND,
-                "text/plain",
-                "Not Found"
-            )
+            newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not Found")
+        }
+    }
+
+    private fun injectEruda(html: String): String {
+        val script = """
+            <script src="/__eruda.min.js"></script>
+            <script>eruda.init();</script>
+        """.trimIndent()
+        return if (html.contains("</body>", ignoreCase = true)) {
+            html.replace(Regex("</body>", RegexOption.IGNORE_CASE), "$script</body>")
+        } else {
+            html + script
         }
     }
 

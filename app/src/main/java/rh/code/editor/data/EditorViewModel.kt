@@ -18,19 +18,22 @@ import java.util.UUID
 class EditorViewModel : ViewModel() {
 
     val documents = mutableStateListOf<Document>()
+    private val outsideProjectDocuments = mutableStateListOf<Document>()
     val activeDocumentId = mutableStateOf<String?>(null)
     val isPreviewOpen = mutableStateOf(false)
     val previewSession = mutableStateOf<PreviewSession?>(null)
     val showNewProjectDialog = mutableStateOf(false)
-    val showPermissionDialog = mutableStateOf(false)
+    val currentProject = mutableStateOf<ProjectInfo?>(null)
+    val drawerOpen = mutableStateOf(false)
+    val moreDrawerOpen = mutableStateOf(false)
+    val themeMode = mutableStateOf("dark")
+    val wallpaperUri = mutableStateOf<String?>(null)
 
     private val previewManager = PreviewManager()
 
     fun init(context: Context) {
         SyntaxHighlighter.loadRules(context)
-        if (documents.isEmpty()) {
-            createNewDocument()
-        }
+        if (documents.isEmpty()) createNewDocument()
     }
 
     fun createNewDocument(name: String = "untitled.txt") {
@@ -65,10 +68,7 @@ class EditorViewModel : ViewModel() {
     fun updateContent(id: String, newContent: String) {
         val index = documents.indexOfFirst { it.id == id }
         if (index >= 0) {
-            documents[index] = documents[index].copy(
-                content = newContent,
-                isModified = true
-            )
+            documents[index] = documents[index].copy(content = newContent, isModified = true)
         }
     }
 
@@ -87,7 +87,7 @@ class EditorViewModel : ViewModel() {
                 activeDocumentId.value = documents.firstOrNull()?.id
             }
         }
-        if (documents.isEmpty()) {
+        if (documents.isEmpty() && currentProject.value == null) {
             createNewDocument()
         }
     }
@@ -96,8 +96,45 @@ class EditorViewModel : ViewModel() {
         activeDocumentId.value = id
     }
 
-    fun getActiveDocument(): Document? {
-        return documents.find { it.id == activeDocumentId.value }
+    fun getActiveDocument(): Document? = documents.find { it.id == activeDocumentId.value }
+
+    // ========== PROJECT ==========
+    fun openProject(context: Context, projectPath: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val dir = File(projectPath)
+                if (!dir.exists() || !dir.isDirectory) return@withContext
+                outsideProjectDocuments.clear()
+                outsideProjectDocuments.addAll(documents)
+                val projectName = dir.name
+                withContext(Dispatchers.Main) {
+                    currentProject.value = ProjectInfo(projectName, projectPath)
+                    documents.clear()
+                    val index = File(dir, "index.html")
+                    if (index.exists()) {
+                        openDocument(Uri.fromFile(index), "index.html", index.readText(), index.absolutePath)
+                    } else {
+                        val first = dir.listFiles()?.firstOrNull { it.isFile }
+                        if (first != null) {
+                            openDocument(Uri.fromFile(first), first.name, first.readText(), first.absolutePath)
+                        } else {
+                            createNewDocument("index.html")
+                        }
+                    }
+                    drawerOpen.value = true
+                }
+            }
+        }
+    }
+
+    fun exitProject() {
+        currentProject.value = null
+        documents.clear()
+        documents.addAll(outsideProjectDocuments)
+        if (documents.isEmpty()) createNewDocument()
+        else activeDocumentId.value = documents.firstOrNull()?.id
+        outsideProjectDocuments.clear()
+        drawerOpen.value = false
     }
 
     fun createProject(context: Context, projectName: String) {
@@ -109,36 +146,69 @@ class EditorViewModel : ViewModel() {
                 if (!projectDir.exists()) projectDir.mkdirs()
                 val indexFile = File(projectDir, "index.html")
                 if (!indexFile.exists()) {
-                    indexFile.writeText(
-                        """
+                    indexFile.writeText("""
                         <!DOCTYPE html>
                         <html>
                         <head>
                             <meta charset="UTF-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
                             <title>$projectName</title>
-                            <style>
-                                body { font-family: system-ui; padding: 20px; background: #0d0d0d; color: #e5e5e5; }
-                            </style>
+                            <style>body{font-family:system-ui;padding:20px;background:#0d0d0d;color:#e5e5e5;}</style>
                         </head>
                         <body>
                             <h1>Hello from $projectName</h1>
                             <p>Edit this file and press Run.</p>
                         </body>
                         </html>
-                        """.trimIndent()
-                    )
+                    """.trimIndent())
                 }
                 withContext(Dispatchers.Main) {
-                    openDocument(
-                        uri = Uri.fromFile(indexFile),
-                        name = "index.html",
-                        content = indexFile.readText(),
-                        path = indexFile.absolutePath
-                    )
+                    openProject(context, projectDir.absolutePath)
                 }
             }
         }
+    }
+
+    fun createFileInProject(name: String) {
+        val proj = currentProject.value ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val file = File(proj.rootPath, name)
+                if (!file.exists()) {
+                    file.writeText("")
+                    withContext(Dispatchers.Main) {
+                        openDocument(Uri.fromFile(file), name, "", file.absolutePath)
+                    }
+                }
+            }
+        }
+    }
+
+    fun createFolderInProject(name: String) {
+        val proj = currentProject.value ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                File(proj.rootPath, name).mkdirs()
+            }
+        }
+    }
+
+    fun listProjectTree(): List<FileNode> {
+        val proj = currentProject.value ?: return emptyList()
+        return buildTree(File(proj.rootPath))
+    }
+
+    private fun buildTree(dir: File): List<FileNode> {
+        val nodes = mutableListOf<FileNode>()
+        val files = dir.listFiles()?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() })) ?: return emptyList()
+        for (f in files) {
+            if (f.isDirectory) {
+                nodes.add(FileNode(f.name, f.absolutePath, true, buildTree(f)))
+            } else {
+                nodes.add(FileNode(f.name, f.absolutePath, false, emptyList()))
+            }
+        }
+        return nodes
     }
 
     fun saveActiveDocument(context: Context) {
@@ -146,31 +216,24 @@ class EditorViewModel : ViewModel() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 try {
-                    if (doc.path != null) {
-                        File(doc.path).writeText(doc.content)
-                    } else if (doc.uri != null) {
-                        context.contentResolver.openOutputStream(doc.uri)?.use {
-                            it.write(doc.content.toByteArray())
-                        }
+                    if (doc.path != null) File(doc.path).writeText(doc.content)
+                    else if (doc.uri != null) {
+                        context.contentResolver.openOutputStream(doc.uri)?.use { it.write(doc.content.toByteArray()) }
                     }
                     withContext(Dispatchers.Main) {
                         val index = documents.indexOfFirst { it.id == doc.id }
-                        if (index >= 0) {
-                            documents[index] = documents[index].copy(isModified = false)
-                        }
+                        if (index >= 0) documents[index] = documents[index].copy(isModified = false)
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                } catch (e: Exception) { e.printStackTrace() }
             }
         }
     }
 
-    fun openPreview() {
+    fun openPreview(context: android.content.Context? = null) {
         val doc = getActiveDocument() ?: return
         viewModelScope.launch {
             val baseDir = doc.path?.let { File(it).parent }
-            val session = previewManager.startPreview(doc.content, baseDir)
+            val session = previewManager.startPreview(doc.content, baseDir, context)
             if (session != null) {
                 previewSession.value = session
                 isPreviewOpen.value = true
@@ -188,8 +251,13 @@ class EditorViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        viewModelScope.launch {
-            previewManager.stopPreview()
-        }
+        viewModelScope.launch { previewManager.stopPreview() }
     }
 }
+
+data class FileNode(
+    val name: String,
+    val path: String,
+    val isDirectory: Boolean,
+    val children: List<FileNode>
+)

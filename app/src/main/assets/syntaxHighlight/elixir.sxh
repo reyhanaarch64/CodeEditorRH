@@ -1,0 +1,17 @@
+version:1
+name:Elixir
+extensions:ex,exs
+keywords:after,alias,and,case,catch,cond,def,defdelegate,defexception,defguard,defimpl,defmacro,defmodule,defp,defprotocol,defstruct,do,else,end,false,fn,for,if,import,in,not,or,raise,receive,require,rescue,quote,raise,super,throw,true,try,unless,unquote,use,when,with,nil
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  default:#E6EDF3
+rules:
+  comment: #.*$
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~?:]+

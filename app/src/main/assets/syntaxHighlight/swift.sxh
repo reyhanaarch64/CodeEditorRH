@@ -1,0 +1,18 @@
+version:1
+name:Swift
+extensions:swift
+keywords:associatedtype,break,case,catch,class,continue,default,defer,do,else,enum,extension,false,fallthrough,false,for,func,if,import,in,init,inout,internal,is,let,open,operator,private,protocol,public,repeat,rethrows,return,self,Self,static,struct,subscript,super,switch,throw,throws,true,try,typealias,var,where,while,async,await,actor,guard,nil
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|/\*.*?\*/
+  string: """.*?"""|".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?\b
+  operator: [+\-*/%=!<>|&^~?:]+

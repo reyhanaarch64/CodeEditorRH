@@ -1,0 +1,18 @@
+version:1
+name:SQL
+extensions:sql
+keywords:add,all,alter,as,asc,begin,between,by,case,cast,check,column,commit,constraint,create,cross,current_date,current_time,database,delete,desc,distinct,drop,else,end,except,exists,false,fetch,for,foreign,from,full,group,having,in,index,inner,insert,intersect,into,is,join,key,left,like,limit,not,null,offset,on,or,order,outer,primary,references,right,rollback,row,select,set,table,then,true,union,unique,update,values,view,when,where,with
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: --.*$|/\*.*?\*/
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~]+

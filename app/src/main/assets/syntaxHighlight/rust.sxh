@@ -1,0 +1,18 @@
+version:1
+name:Rust
+extensions:rs
+keywords:as,async,await,break,const,continue,crate,dyn,else,enum,extern,false,fn,for,if,impl,in,let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while,Some,None,Box,Send,Sync
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|/\*.*?\*/
+  string: r#*".*?"#*|".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?[uUiIfF]*\b
+  operator: [+\-*/%=!<>|&^~?:]+

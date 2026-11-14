@@ -1,0 +1,14 @@
+version:1
+name:JSON
+extensions:json
+keywords:true,false,null
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  number:#79C0FF
+  property:#79C0FF
+  value:#A5D6FF
+  default:#E6EDF3
+rules:
+  string: ".*?"
+  number: \b-?\d+(\.\d+)?([eE][+-]?\d+)?\b

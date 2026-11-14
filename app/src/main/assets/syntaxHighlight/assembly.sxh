@@ -1,0 +1,16 @@
+version:1
+name:Assembly
+extensions:asm,s
+keywords:mov,movb,movw,movl,movq,lea,push,pop,call,ret,add,sub,mul,imul,div,idiv,and,or,xor,not,cmp,test,jmp,je,jne,jg,jge,jl,jle,ja,jb,loop,nop,int,syscall,section,global,extern,db,dw,dd,dq,byte,word,dword,qword
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  default:#E6EDF3
+rules:
+  comment: ;.*$|#.*$
+  string: ".*?"|\'.*?\'
+  number: \b0x[0-9A-Fa-f]+|\b\d+\b
+  operator: [+\-*/%=<>:&|]+

@@ -1,0 +1,17 @@
+version:1
+name:Perl
+extensions:pl,pm
+keywords:and,cmp,continue,do,else,elsif,eq,for,foreach,ge,given,grep,gt,if,last,le,local,lt,map,my,ne,next,no,not,or,our,package,redo,require,return,sort,state,sub,unless,until,use,when,while,xor,CORE,undef,BEGIN,END
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  default:#E6EDF3
+rules:
+  comment: #.*$
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~?:]+

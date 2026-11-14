@@ -11,3 +11,8 @@ data class Document(
     val isModified: Boolean = false,
     val language: String = "plaintext"
 )
+
+data class ProjectInfo(
+    val name: String,
+    val rootPath: String
+)

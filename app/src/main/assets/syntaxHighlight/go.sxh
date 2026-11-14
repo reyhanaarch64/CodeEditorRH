@@ -1,0 +1,18 @@
+version:1
+name:Go
+extensions:go
+keywords:break,case,chan,const,continue,default,defer,else,fallthrough,for,func,go,goto,if,import,interface,map,package,range,return,select,struct,switch,type,var,true,false,iota,nil
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|/\*.*?\*/
+  string: `.*?`|".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?\b
+  operator: [+\-*/%=!<>|&^~:]+

@@ -33,64 +33,54 @@ fun TabBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Surface)
-            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+            .background(SurfaceVariant)
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
                 .weight(1f)
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             documents.forEach { doc ->
                 val isActive = doc.id == activeId
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(if (isActive) Primary else SurfaceElevated)
                         .clickable { onTabClick(doc.id) }
-                        .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        .padding(start = 8.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = if (doc.isModified) "• ${doc.name}" else doc.name,
                         color = if (isActive) OnPrimary else TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = 11.sp,
+                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 130.dp)
+                        modifier = Modifier.widthIn(max = 100.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(Modifier.width(4.dp))
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = if (isActive) OnPrimary.copy(alpha = 0.8f) else TextSecondary,
-                        modifier = Modifier
-                            .size(15.dp)
-                            .clickable { onTabClose(doc.id) }
+                        Icons.Default.Close, null,
+                        tint = if (isActive) OnPrimary.copy(0.8f) else TextSecondary,
+                        modifier = Modifier.size(12.dp).clickable { onTabClose(doc.id) }
                     )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
+        Spacer(Modifier.width(4.dp))
         Box(
             modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(28.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(Primary)
                 .clickable { onAddClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add",
-                tint = OnPrimary,
-                modifier = Modifier.size(18.dp)
-            )
+            Icon(Icons.Default.Add, null, tint = OnPrimary, modifier = Modifier.size(14.dp))
         }
     }
 }

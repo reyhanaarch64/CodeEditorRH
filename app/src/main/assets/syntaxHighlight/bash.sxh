@@ -1,0 +1,17 @@
+version:1
+name:Bash
+extensions:sh,bash,zsh
+keywords:if,then,else,elif,fi,case,esac,for,select,while,until,do,done,in,function,time,coproc,return,exit,break,continue,declare,local,export,readonly,shift,source,alias,unalias,unset,set,trap,wait,true,false
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  default:#E6EDF3
+rules:
+  comment: #.*$
+  string: ".*?"|\'.*?\'
+  number: \b\d+\b
+  operator: [+\-*/%=!<>|&^~?:]+

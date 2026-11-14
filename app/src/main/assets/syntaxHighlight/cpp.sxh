@@ -1,0 +1,18 @@
+version:1
+name:C++
+extensions:cpp,cc,cxx,hpp,hxx
+keywords:alignas,alignof,asm,auto,bool,break,case,catch,char,char8_t,char16_t,char32_t,class,concept,const,consteval,constexpr,constinit,const_cast,continue,decltype,default,delete,do,double,dynamic_cast,else,enum,explicit,export,extern,false,float,for,friend,goto,if,import,inline,int,long,module,mutable,namespace,new,noexcept,nullptr,operator,private,protected,public,register,reinterpret_cast,requires,return,short,signed,sizeof,static,static_assert,static_cast,struct,switch,template,this,thread_local,throw,true,try,typedef,typeid,typename,union,unsigned,using,virtual,void,volatile,wchar_t,while,override,final
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: //.*$|/\*.*?\*/
+  string: R".*?"|".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?[uUlLfF]*\b
+  operator: [+\-*/%=!<>|&^~?:]+

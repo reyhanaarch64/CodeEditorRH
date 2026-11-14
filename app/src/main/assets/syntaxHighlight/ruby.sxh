@@ -1,0 +1,18 @@
+version:1
+name:Ruby
+extensions:rb,rake,gemspec
+keywords:alias,and,begin,break,case,class,def,defined,do,else,elsif,end,ensure,false,for,if,in,module,next,nil,not,or,redo,rescue,retry,return,self,super,then,true,undef,unless,until,when,while,yield,BEGIN,END
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: #.*$
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~?:]+

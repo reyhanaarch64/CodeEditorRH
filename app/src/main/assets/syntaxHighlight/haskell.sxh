@@ -1,0 +1,18 @@
+version:1
+name:Haskell
+extensions:hs,lhs
+keywords:as,case,class,data,default,deriving,do,else,foreign,if,import,in,infix,infixl,infixr,instance,let,module,newtype,of,then,type,where,family,forall,mdo,pattern,qualified,role,safety,stock,via
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  type:#FFA657
+  default:#E6EDF3
+rules:
+  comment: --.*$|{-.*?-}
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?\b
+  operator: [+\-*/%=!<>|&^~:$]+

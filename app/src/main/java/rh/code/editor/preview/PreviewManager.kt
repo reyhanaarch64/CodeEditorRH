@@ -1,14 +1,12 @@
 package rh.code.editor.preview
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 enum class PreviewState {
-    IDLE,
-    STARTING,
-    RUNNING,
-    STOPPING
+    IDLE, STARTING, RUNNING, STOPPING
 }
 
 data class PreviewSession(
@@ -25,14 +23,14 @@ class PreviewManager {
     var state: PreviewState = PreviewState.IDLE
         private set
 
-    suspend fun startPreview(html: String, baseDir: String? = null): PreviewSession? {
+    suspend fun startPreview(html: String, baseDir: String? = null, context: Context? = null): PreviewSession? {
         return withContext(Dispatchers.IO) {
             if (state == PreviewState.RUNNING || state == PreviewState.STARTING) {
                 stopPreview()
             }
             state = PreviewState.STARTING
             try {
-                val newServer = PreviewServer(html, baseDir)
+                val newServer = PreviewServer(html, baseDir, context)
                 newServer.start()
                 val port = newServer.actualPort
                 val url = "http://127.0.0.1:$port/"

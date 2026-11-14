@@ -1,0 +1,17 @@
+version:1
+name:R
+extensions:r,R
+keywords:if,else,repeat,while,function,for,in,next,break,TRUE,FALSE,NULL,NA,NaN,Inf,NA_integer_,NA_real_,NA_character_,NA_complex_
+colors:
+  keyword:#FF7B72
+  string:#A5D6FF
+  comment:#8B949E
+  number:#79C0FF
+  operator:#FFA657
+  function:#D2A8FF
+  default:#E6EDF3
+rules:
+  comment: #.*$
+  string: ".*?"|\'.*?\'
+  number: \b\d+(\.\d+)?([eE][+-]?\d+)?\b
+  operator: [+\-*/%=!<>|&^~:$]+
