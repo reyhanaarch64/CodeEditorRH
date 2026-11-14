@@ -157,7 +157,16 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             }
         }
 
-        // PROJECT DRAWER (left)
+        // dim overlay di belakang drawer (hanya visual, tidak menutup saat diklik)
+        if (viewModel.drawerOpen.value || viewModel.moreDrawerOpen.value) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f))
+            )
+        }
+
+        // PROJECT DRAWER (left) - di atas overlay
         AnimatedVisibility(
             visible = viewModel.drawerOpen.value && isInProject,
             enter = slideInHorizontally { -it } + fadeIn(),
@@ -171,7 +180,7 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                     try {
                         val f = File(node.path)
                         viewModel.openDocument(Uri.fromFile(f), node.name, f.readText(), node.path)
-                        viewModel.drawerOpen.value = false
+                        // jangan auto-close drawer biar bisa klik banyak file
                     } catch (_: Exception) {}
                 },
                 onCreateFile = { showCreateFile = true },
@@ -184,7 +193,7 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             )
         }
 
-        // MORE DRAWER (right)
+        // MORE DRAWER (right) - di atas overlay
         AnimatedVisibility(
             visible = viewModel.moreDrawerOpen.value,
             enter = slideInHorizontally { it } + fadeIn(),
@@ -199,19 +208,6 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 onSave = { viewModel.moreDrawerOpen.value = false; viewModel.saveActiveDocument(context) },
                 onExitProject = { viewModel.moreDrawerOpen.value = false; viewModel.exitProject() },
                 onClose = { viewModel.moreDrawerOpen.value = false }
-            )
-        }
-
-        // dim overlay when drawer open
-        if (viewModel.drawerOpen.value || viewModel.moreDrawerOpen.value) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.4f))
-                    .clickable {
-                        viewModel.drawerOpen.value = false
-                        viewModel.moreDrawerOpen.value = false
-                    }
             )
         }
     }
