@@ -2,8 +2,6 @@ package rh.code.editor.ui.editor
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,9 +9,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -32,7 +34,9 @@ fun CodeEditorScreen(
     insertSymbol: String? = null,
     onSymbolInserted: () -> Unit = {},
     isDark: Boolean = true,
-    wallpaperUri: android.net.Uri? = null
+    wallpaperUri: android.net.Uri? = null,
+    fontSizeSp: Float = 14f,
+    readOnly: Boolean = false
 ) {
     val scrollState = rememberScrollState()
     var textFieldValue by remember(document.id) {
@@ -46,7 +50,7 @@ fun CodeEditorScreen(
     }
 
     LaunchedEffect(insertSymbol) {
-        if (!insertSymbol.isNullOrEmpty()) {
+        if (!insertSymbol.isNullOrEmpty() && !readOnly) {
             val tf = textFieldValue
             val start = tf.selection.min
             val newText = tf.text.substring(0, start) + insertSymbol + tf.text.substring(tf.selection.max)
@@ -74,7 +78,11 @@ fun CodeEditorScreen(
         textFieldValue.text.count { it == '\n' } + 1
     }
 
+    val fs = fontSizeSp.sp
+    val lh = (fontSizeSp * 1.55f).sp
+
     fun handleValueChange(newValue: TextFieldValue) {
+        if (readOnly) return
         val oldText = textFieldValue.text
         val newText = newValue.text
         val cursor = newValue.selection.start
@@ -83,19 +91,14 @@ fun CodeEditorScreen(
         if (newText.length == oldText.length + 1 && cursor > 0) {
             val inserted = newText.getOrNull(cursor - 1)
             if (inserted == '"' || inserted == '\'' || inserted == '`') {
-                // jangan double kalau sudah ada penutup di kanan
                 val nextChar = newText.getOrNull(cursor)
                 if (nextChar != inserted) {
                     val paired = newText.substring(0, cursor) + inserted + newText.substring(cursor)
-                    textFieldValue = TextFieldValue(
-                        text = paired,
-                        selection = TextRange(cursor)
-                    )
+                    textFieldValue = TextFieldValue(text = paired, selection = TextRange(cursor))
                     onContentChange(paired)
                     return
                 }
             }
-            // auto-pair brackets
             val pairs = mapOf('(' to ')', '[' to ']', '{' to '}')
             if (inserted != null && pairs.containsKey(inserted)) {
                 val close = pairs[inserted]!!
@@ -114,9 +117,8 @@ fun CodeEditorScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Background)) {
-        // wallpaper layer
         wallpaperUri?.let { uri ->
-            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val ctx = LocalContext.current
             val bmp = remember(uri) {
                 try {
                     ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
@@ -132,61 +134,76 @@ fun CodeEditorScreen(
                 )
             }
         }
-    Row(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // line numbers
-        Column(
-            modifier = Modifier
-                .width(40.dp)
-                .fillMaxHeight()
-                .background(Surface)
-                .verticalScroll(scrollState)
-                .padding(top = 12.dp, end = 4.dp),
-            horizontalAlignment = androidx.compose.ui.Alignment.End
-        ) {
-            for (i in 1..lineCount) {
-                Text(
-                    text = i.toString(),
-                    color = LineNumber,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    lineHeight = 20.sp
-                )
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            // line numbers
+            Column(
+                modifier = Modifier
+                    .width(44.dp)
+                    .fillMaxHeight()
+                    .background(Surface)
+                    .verticalScroll(scrollState)
+                    .padding(top = 12.dp, end = 4.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                for (i in 1..lineCount) {
+                    Text(
+                        text = i.toString(),
+                        color = LineNumber,
+                        fontSize = (fontSizeSp * 0.9f).sp,
+                        fontFamily = FontFamily.Monospace,
+                        lineHeight = lh
+                    )
+                }
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                if (readOnly) {
+                    // mode baca: tampilkan highlight, tidak bisa diedit
+                    Text(
+                        text = highlighted,
+                        style = TextStyle(
+                            fontSize = fs,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = lh
+                        ),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(start = 6.dp, top = 12.dp, end = 10.dp, bottom = 12.dp)
+                    )
+                } else {
+                    BasicTextField(
+                        value = textFieldValue,
+                        onValueChange = { handleValueChange(it) },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(start = 6.dp, top = 12.dp, end = 10.dp, bottom = 12.dp),
+                        textStyle = TextStyle(
+                            color = Color.Transparent,
+                            fontSize = fs,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = lh
+                        ),
+                        cursorBrush = SolidColor(Primary),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                Text(
+                                    text = highlighted,
+                                    style = TextStyle(
+                                        fontSize = fs,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = lh
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                innerTextField()
+                            }
+                        }
+                    )
+                }
             }
         }
-
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            BasicTextField(
-                value = textFieldValue,
-                onValueChange = { handleValueChange(it) },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(start = 6.dp, top = 12.dp, end = 10.dp, bottom = 12.dp),
-                textStyle = TextStyle(
-                    color = Color.Transparent,
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.Monospace,
-                    lineHeight = 20.sp
-                ),
-                cursorBrush = SolidColor(Primary),
-                decorationBox = { innerTextField ->
-                    Box {
-                        Text(
-                            text = highlighted,
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = 20.sp
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        innerTextField()
-                    }
-                }
-            )
-        }
-    }
     }
 }

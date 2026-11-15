@@ -25,30 +25,45 @@ fun TopBar(
     onSearch: () -> Unit,
     onSave: () -> Unit,
     onPreview: () -> Unit,
-    onMore: () -> Unit
+    onMore: () -> Unit,
+    onUndo: (() -> Unit)? = null,
+    onRedo: (() -> Unit)? = null,
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
+    isReadMode: Boolean = false,
+    onToggleRead: (() -> Unit)? = null,
+    onSettings: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // hamburger
         IconButtonBox(Icons.Default.Menu, onMenuClick)
-
-        Spacer(Modifier.width(8.dp))
-
+        Spacer(Modifier.width(6.dp))
         Text(
             text = title,
             color = TextPrimary,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             modifier = Modifier.weight(1f)
         )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            if (onUndo != null) {
+                IconButtonBox(Icons.Default.Undo, onUndo, enabled = canUndo)
+            }
+            if (onRedo != null) {
+                IconButtonBox(Icons.Default.Redo, onRedo, enabled = canRedo)
+            }
+            if (onToggleRead != null) {
+                IconButtonBox(
+                    if (isReadMode) Icons.Default.Edit else Icons.Default.Visibility,
+                    onToggleRead
+                )
+            }
             IconButtonBox(Icons.Default.Search, onSearch)
             IconButtonBox(Icons.Default.Save, onSave)
             if (canPreview) {
@@ -57,14 +72,17 @@ fun TopBar(
                         .clip(RoundedCornerShape(10.dp))
                         .background(Primary)
                         .clickable { onPreview() }
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .padding(horizontal = 8.dp, vertical = 7.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.PlayArrow, null, tint = OnPrimary, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text("Run", color = OnPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.PlayArrow, null, tint = OnPrimary, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(2.dp))
+                        Text("Run", color = OnPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
+            }
+            if (onSettings != null) {
+                IconButtonBox(Icons.Default.Settings, onSettings)
             }
             IconButtonBox(Icons.Default.MoreVert, onMore)
         }
@@ -72,15 +90,23 @@ fun TopBar(
 }
 
 @Composable
-fun IconButtonBox(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+fun IconButtonBox(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(34.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(SurfaceElevated)
-            .clickable { onClick() },
+            .background(if (enabled) SurfaceElevated else SurfaceElevated.copy(alpha = 0.4f))
+            .clickable(enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(18.dp))
+        Icon(
+            icon, null,
+            tint = if (enabled) TextPrimary else TextSecondary,
+            modifier = Modifier.size(17.dp)
+        )
     }
 }

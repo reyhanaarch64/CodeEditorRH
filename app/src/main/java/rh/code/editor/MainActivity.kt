@@ -15,7 +15,9 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -83,10 +85,16 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     var showCreateFolder by remember { mutableStateOf(false) }
     var newItemName by remember { mutableStateOf("") }
 
+    var binaryToast by remember { mutableStateOf<String?>(null) }
+
     val openFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             try {
                 val name = getFileName(context, uri) ?: "file.txt"
+                if (!viewModel.isTextFile(name)) {
+                    binaryToast = "File \"$name\" bukan teks, tidak bisa dibuka di editor"
+                    return@rememberLauncherForActivityResult
+                }
                 val content = context.contentResolver.openInputStream(uri)?.use {
                     BufferedReader(InputStreamReader(it)).readText()
                 } ?: ""
@@ -161,7 +169,14 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 onSearch = { showSearch = true },
                 onSave = { viewModel.saveActiveDocument(context) },
                 onPreview = { viewModel.openPreview(context) },
-                onMore = { viewModel.moreDrawerOpen.value = true }
+                onMore = { viewModel.moreDrawerOpen.value = true },
+                onUndo = { activeDoc?.let { viewModel.undo(it.id) } },
+                onRedo = { activeDoc?.let { viewModel.redo(it.id) } },
+                canUndo = viewModel.canUndo(activeDoc?.id),
+                canRedo = viewModel.canRedo(activeDoc?.id),
+                isReadMode = viewModel.isReadMode.value,
+                onToggleRead = { viewModel.toggleReadMode() },
+                onSettings = { viewModel.showSettings.value = true }
             )
 
             // TAB BAR (row 2 - smaller)
@@ -182,10 +197,14 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                         insertSymbol = pendingSymbol,
                         onSymbolInserted = { pendingSymbol = null },
                         isDark = viewModel.isDarkTheme.value,
-                        wallpaperUri = viewModel.wallpaperUri.value
+                        wallpaperUri = viewModel.wallpaperUri.value,
+                        fontSizeSp = viewModel.fontSize.value,
+                        readOnly = viewModel.isReadMode.value
                     )
                 }
-                SymbolBar(onSymbolClick = { pendingSymbol = it })
+                if (!viewModel.isReadMode.value) {
+                    SymbolBar(onSymbolClick = { pendingSymbol = it })
+                }
                 val totalLines = activeDoc.content.count { it == '\n' } + 1
                 StatusBar(line = cursorLine, column = cursorCol, language = activeDoc.language, totalLines = totalLines)
             }
@@ -214,7 +233,11 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 onFileClick = { node ->
                     try {
                         val f = File(node.path)
-                        viewModel.openDocument(Uri.fromFile(f), node.name, f.readText(), node.path)
+                        if (!viewModel.isTextFile(node.name)) {
+                            binaryToast = "File \"${node.name}\" bukan teks, tidak bisa dibuka di editor"
+                        } else {
+                            viewModel.openDocument(Uri.fromFile(f), node.name, f.readText(), node.path)
+                        }
                     } catch (_: Exception) {}
                 },
                 onCreateInPath = { parentPath, isFolder ->
@@ -296,13 +319,19 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     }
 
     if (showLanguagePicker && activeDoc != null) {
-        val langs = listOf("plaintext", "html", "css", "javascript", "kotlin", "json", "xml", "python", "java", "php")
+        val langs = rh.code.editor.syntax.SyntaxHighlighter.getAvailableLanguages()
         AlertDialog(
             onDismissRequest = { showLanguagePicker = false },
             containerColor = Surface, shape = RoundedCornerShape(20.dp),
             title = { Text("Pilih Syntax", color = TextPrimary) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     langs.forEach { lang ->
                         val sel = activeDoc.language == lang
                         Box(
@@ -474,6 +503,126 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showProjectPicker = false }) { Text("Batal", color = TextSecondary) }
+            }
+        )
+    }
+
+    // toast sederhana untuk file binary
+    if (binaryToast != null) {
+        LaunchedEffect(binaryToast) {
+            kotlinx.coroutines.delay(2500)
+            binaryToast = null
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 80.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceElevated)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Text(binaryToast!!, color = TextPrimary, fontSize = 13.sp)
+            }
+        }
+    }
+
+    // settings dialog
+    if (viewModel.showSettings.value) {
+        AlertDialog(
+            onDismissRequest = {
+                viewModel.showSettings.value = false
+                viewModel.saveSettings(context)
+            },
+            containerColor = Surface,
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Pengaturan", color = TextPrimary) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Editor", color = TextSecondary, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Ukuran font", color = TextPrimary, fontSize = 14.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButtonBox(Icons.Default.Remove, {
+                                if (viewModel.fontSize.value > 10f) viewModel.fontSize.value -= 1f
+                            })
+                            Text(
+                                "${viewModel.fontSize.value.toInt()} sp",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            IconButtonBox(Icons.Default.Add, {
+                                if (viewModel.fontSize.value < 28f) viewModel.fontSize.value += 1f
+                            })
+                        }
+                    }
+
+                    Text("Preview", color = TextSecondary, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SurfaceElevated)
+                            .clickable { viewModel.erudaEnabled.value = !viewModel.erudaEnabled.value }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Eruda console", color = TextPrimary, fontSize = 14.sp)
+                            Text("inject debugger di preview html", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Text(
+                            if (viewModel.erudaEnabled.value) "ON" else "OFF",
+                            color = if (viewModel.erudaEnabled.value) Primary else TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Text("Tampilan", color = TextSecondary, fontSize = 12.sp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SurfaceElevated)
+                            .clickable { viewModel.isDarkTheme.value = !viewModel.isDarkTheme.value }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Dark theme", color = TextPrimary, fontSize = 14.sp)
+                        Text(
+                            if (viewModel.isDarkTheme.value) "ON" else "OFF",
+                            color = if (viewModel.isDarkTheme.value) Primary else TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.showSettings.value = false
+                    viewModel.saveSettings(context)
+                }) { Text("Simpan", color = Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.showSettings.value = false
+                }) { Text("Tutup", color = TextSecondary) }
             }
         )
     }

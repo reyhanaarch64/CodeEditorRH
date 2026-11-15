@@ -269,9 +269,21 @@ object SyntaxHighlighter {
 
     fun getRuleForExtension(ext: String): SyntaxRuleV2? = cache[ext.lowercase()]
 
+    /** daftar bahasa dari semua sxh yang berhasil di-load + plaintext */
+    fun getAvailableLanguages(): List<String> {
+        val names = cache.values.map { it.name.lowercase() }.toMutableSet()
+        // juga ambil dari extension biar lengkap
+        names.addAll(cache.keys)
+        names.remove("plaintext")
+        return (listOf("plaintext") + names.sorted()).distinct()
+    }
+
     fun detectLanguage(fileName: String): String {
         val ext = fileName.substringAfterLast('.', "").lowercase()
-        return if (cache.containsKey(ext)) ext else "plaintext"
+        return if (cache.containsKey(ext)) {
+            // prefer nama bahasa daripada extension mentah
+            cache[ext]?.name?.lowercase() ?: ext
+        } else "plaintext"
     }
 
     fun highlight(text: String, extension: String, isDark: Boolean = true): AnnotatedString {

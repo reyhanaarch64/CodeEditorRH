@@ -1,0 +1,19 @@
+// sxh v3
+lang Markdown {
+  ext md markdown
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color default #E6EDF3
+
+  keyword {
+    true false null
+  }
+
+  match comment /^#+\s.*$/
+  match string /`[^`]+`/
+  match string /\*\*[^*]+\*\*/
+  match string /\*[^*]+\*/
+  match string /\[[^\]]+\]\([^)]+\)/
+}

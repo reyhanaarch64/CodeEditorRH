@@ -30,11 +30,35 @@ class EditorViewModel : ViewModel() {
     val wallpaperUri = mutableStateOf<Uri?>(null)
     val treeVersion = mutableStateOf(0) // naikkan biar tree recompose
 
+    // pengaturan
+    val fontSize = mutableStateOf(14f)          // sp
+    val erudaEnabled = mutableStateOf(true)
+    val isReadMode = mutableStateOf(false)
+    val showSettings = mutableStateOf(false)
+
+    // undo / redo per dokumen
+    private val undoStacks = mutableMapOf<String, MutableList<String>>()
+    private val redoStacks = mutableMapOf<String, MutableList<String>>()
+    private val maxHistory = 50
+
     private val previewManager = PreviewManager()
 
     fun init(context: Context) {
         SyntaxHighlighter.loadRules(context)
+        // load setting sederhana dari sharedprefs
+        val prefs = context.getSharedPreferences("editor_settings", Context.MODE_PRIVATE)
+        fontSize.value = prefs.getFloat("font_size", 14f)
+        erudaEnabled.value = prefs.getBoolean("eruda_enabled", true)
+        isDarkTheme.value = prefs.getBoolean("dark_theme", true)
         if (documents.isEmpty()) createNewDocument()
+    }
+
+    fun saveSettings(context: Context) {
+        context.getSharedPreferences("editor_settings", Context.MODE_PRIVATE).edit()
+            .putFloat("font_size", fontSize.value)
+            .putBoolean("eruda_enabled", erudaEnabled.value)
+            .putBoolean("dark_theme", isDarkTheme.value)
+            .apply()
     }
 
     fun createNewDocument(name: String = "untitled.txt") {
@@ -46,13 +70,35 @@ class EditorViewModel : ViewModel() {
         )
         documents.add(doc)
         activeDocumentId.value = doc.id
+        isReadMode.value = false
+        undoStacks[doc.id] = mutableListOf("")
+        redoStacks[doc.id] = mutableListOf()
     }
 
-    fun openDocument(uri: Uri, name: String, content: String, path: String? = null) {
+    fun isTextFile(name: String): Boolean {
+        val ext = name.substringAfterLast('.', "").lowercase()
+        if (ext.isEmpty()) return true
+        val textExts = setOf(
+            "txt", "md", "markdown", "html", "htm", "xhtml", "css", "scss", "sass", "less",
+            "js", "jsx", "mjs", "cjs", "ts", "tsx", "kt", "kts", "java", "py", "pyw", "php",
+            "go", "sh", "bash", "zsh", "sql", "json", "xml", "svg", "yml", "yaml", "toml",
+            "ini", "conf", "cfg", "properties", "gradle", "kts", "c", "cpp", "h", "hpp",
+            "rs", "rb", "swift", "m", "mm", "pl", "pm", "r", "lua", "dart", "vue", "svelte",
+            "gitignore", "dockerignore", "editorconfig", "env", "log", "csv", "tsv"
+        )
+        return textExts.contains(ext)
+    }
+
+    fun openDocument(uri: Uri, name: String, content: String, path: String? = null): Boolean {
+        if (!isTextFile(name)) {
+            // file binary / media, jangan buka di editor
+            return false
+        }
         val existing = documents.find { it.uri == uri || (path != null && it.path == path) }
         if (existing != null) {
             activeDocumentId.value = existing.id
-            return
+            isReadMode.value = false
+            return true
         }
         val doc = Document(
             id = UUID.randomUUID().toString(),
@@ -64,13 +110,64 @@ class EditorViewModel : ViewModel() {
         )
         documents.add(doc)
         activeDocumentId.value = doc.id
+        isReadMode.value = false
+        // init undo stack
+        undoStacks[doc.id] = mutableListOf(content)
+        redoStacks[doc.id] = mutableListOf()
+        return true
     }
 
-    fun updateContent(id: String, newContent: String) {
+    fun updateContent(id: String, newContent: String, recordUndo: Boolean = true) {
         val index = documents.indexOfFirst { it.id == id }
         if (index >= 0) {
+            val old = documents[index].content
+            if (old == newContent) return
+            if (recordUndo) {
+                val stack = undoStacks.getOrPut(id) { mutableListOf(old) }
+                if (stack.lastOrNull() != old) stack.add(old)
+                if (stack.size > maxHistory) stack.removeAt(0)
+                redoStacks[id] = mutableListOf()
+            }
             documents[index] = documents[index].copy(content = newContent, isModified = true)
         }
+    }
+
+    fun canUndo(id: String?): Boolean {
+        if (id == null) return false
+        val stack = undoStacks[id] ?: return false
+        return stack.size > 1
+    }
+
+    fun canRedo(id: String?): Boolean {
+        if (id == null) return false
+        return (redoStacks[id]?.isNotEmpty() == true)
+    }
+
+    fun undo(id: String) {
+        val stack = undoStacks[id] ?: return
+        if (stack.size <= 1) return
+        val current = stack.removeAt(stack.lastIndex)
+        redoStacks.getOrPut(id) { mutableListOf() }.add(current)
+        val prev = stack.last()
+        val index = documents.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            documents[index] = documents[index].copy(content = prev, isModified = true)
+        }
+    }
+
+    fun redo(id: String) {
+        val rstack = redoStacks[id] ?: return
+        if (rstack.isEmpty()) return
+        val next = rstack.removeAt(rstack.lastIndex)
+        undoStacks.getOrPut(id) { mutableListOf() }.add(next)
+        val index = documents.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            documents[index] = documents[index].copy(content = next, isModified = true)
+        }
+    }
+
+    fun toggleReadMode() {
+        isReadMode.value = !isReadMode.value
     }
 
     fun setLanguage(id: String, language: String) {
@@ -91,7 +188,10 @@ class EditorViewModel : ViewModel() {
         if (documents.isEmpty() && currentProject.value == null) createNewDocument()
     }
 
-    fun setActive(id: String) { activeDocumentId.value = id }
+    fun setActive(id: String) {
+        activeDocumentId.value = id
+        isReadMode.value = false
+    }
     fun getActiveDocument(): Document? = documents.find { it.id == activeDocumentId.value }
 
     fun listAvailableProjects(): List<File> {
@@ -232,7 +332,7 @@ class EditorViewModel : ViewModel() {
         val doc = getActiveDocument() ?: return
         viewModelScope.launch {
             val baseDir = doc.path?.let { File(it).parent }
-            val session = previewManager.startPreview(doc.content, baseDir, context)
+            val session = previewManager.startPreview(doc.content, baseDir, context, erudaEnabled.value)
             if (session != null) {
                 previewSession.value = session
                 isPreviewOpen.value = true

@@ -8,7 +8,8 @@ import java.io.File
 class PreviewServer(
     private val htmlSnapshot: String,
     private val baseDir: String? = null,
-    private val context: Context? = null
+    private val context: Context? = null,
+    private val erudaEnabled: Boolean = true
 ) : NanoHTTPD(0) {
 
     var actualPort: Int = 0
@@ -22,8 +23,7 @@ class PreviewServer(
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
 
-        // serve eruda
-        if (uri == "/__eruda.min.js" && context != null) {
+        if (uri == "/__eruda.min.js" && context != null && erudaEnabled) {
             try {
                 val bytes = context.assets.open("libs/eruda.min.js").readBytes()
                 return newFixedLengthResponse(
@@ -38,8 +38,7 @@ class PreviewServer(
         }
 
         return if (uri == "/" || uri == "/index.html") {
-            // inject eruda
-            val injected = injectEruda(htmlSnapshot)
+            val injected = if (erudaEnabled) injectEruda(htmlSnapshot) else htmlSnapshot
             newFixedLengthResponse(
                 Response.Status.OK,
                 "text/html; charset=utf-8",
