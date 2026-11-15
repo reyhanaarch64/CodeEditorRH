@@ -31,10 +31,23 @@ class EditorViewModel : ViewModel() {
     val treeVersion = mutableStateOf(0) // naikkan biar tree recompose
 
     // pengaturan
-    val fontSize = mutableStateOf(14f)          // sp
+    val fontSize = mutableStateOf(14f)
     val erudaEnabled = mutableStateOf(true)
     val isReadMode = mutableStateOf(false)
     val showSettings = mutableStateOf(false)
+    val wordWrap = mutableStateOf(false)
+    val showLineNumbers = mutableStateOf(true)
+    val autoPair = mutableStateOf(true)
+    val lazyHighlight = mutableStateOf(true)
+    val autoRefreshPreview = mutableStateOf(false)
+    val limitHugeFiles = mutableStateOf(true)
+
+    // find / replace
+    val showFindReplace = mutableStateOf(false)
+    val findQuery = mutableStateOf("")
+    val replaceQuery = mutableStateOf("")
+    val findMatchIndex = mutableStateOf(0)
+    val findMatches = mutableStateOf<List<IntRange>>(emptyList())
 
     // undo / redo per dokumen
     private val undoStacks = mutableMapOf<String, MutableList<String>>()
@@ -45,11 +58,16 @@ class EditorViewModel : ViewModel() {
 
     fun init(context: Context) {
         SyntaxHighlighter.loadRules(context)
-        // load setting sederhana dari sharedprefs
         val prefs = context.getSharedPreferences("editor_settings", Context.MODE_PRIVATE)
         fontSize.value = prefs.getFloat("font_size", 14f)
         erudaEnabled.value = prefs.getBoolean("eruda_enabled", true)
         isDarkTheme.value = prefs.getBoolean("dark_theme", true)
+        wordWrap.value = prefs.getBoolean("word_wrap", false)
+        showLineNumbers.value = prefs.getBoolean("show_line_numbers", true)
+        autoPair.value = prefs.getBoolean("auto_pair", true)
+        lazyHighlight.value = prefs.getBoolean("lazy_highlight", true)
+        autoRefreshPreview.value = prefs.getBoolean("auto_refresh", false)
+        limitHugeFiles.value = prefs.getBoolean("limit_huge", true)
         if (documents.isEmpty()) createNewDocument()
     }
 
@@ -58,7 +76,70 @@ class EditorViewModel : ViewModel() {
             .putFloat("font_size", fontSize.value)
             .putBoolean("eruda_enabled", erudaEnabled.value)
             .putBoolean("dark_theme", isDarkTheme.value)
+            .putBoolean("word_wrap", wordWrap.value)
+            .putBoolean("show_line_numbers", showLineNumbers.value)
+            .putBoolean("auto_pair", autoPair.value)
+            .putBoolean("lazy_highlight", lazyHighlight.value)
+            .putBoolean("auto_refresh", autoRefreshPreview.value)
+            .putBoolean("limit_huge", limitHugeFiles.value)
             .apply()
+    }
+
+    fun runFind(query: String) {
+        findQuery.value = query
+        val doc = getActiveDocument() ?: return
+        if (query.isEmpty()) {
+            findMatches.value = emptyList()
+            findMatchIndex.value = 0
+            return
+        }
+        val text = doc.content
+        val matches = mutableListOf<IntRange>()
+        var start = 0
+        val q = query
+        while (true) {
+            val idx = text.indexOf(q, start, ignoreCase = true)
+            if (idx < 0) break
+            matches.add(idx until (idx + q.length))
+            start = idx + 1
+            if (matches.size > 5000) break // safety
+        }
+        findMatches.value = matches
+        findMatchIndex.value = 0
+    }
+
+    fun findNext() {
+        val m = findMatches.value
+        if (m.isEmpty()) return
+        findMatchIndex.value = (findMatchIndex.value + 1) % m.size
+    }
+
+    fun findPrev() {
+        val m = findMatches.value
+        if (m.isEmpty()) return
+        findMatchIndex.value = if (findMatchIndex.value <= 0) m.lastIndex else findMatchIndex.value - 1
+    }
+
+    fun replaceCurrent() {
+        val doc = getActiveDocument() ?: return
+        val matches = findMatches.value
+        val idx = findMatchIndex.value
+        if (matches.isEmpty() || idx !in matches.indices) return
+        val range = matches[idx]
+        val newContent = doc.content.substring(0, range.first) +
+            replaceQuery.value +
+            doc.content.substring(range.last + 1)
+        updateContent(doc.id, newContent)
+        runFind(findQuery.value)
+    }
+
+    fun replaceAll() {
+        val doc = getActiveDocument() ?: return
+        val q = findQuery.value
+        if (q.isEmpty()) return
+        val newContent = doc.content.replace(q, replaceQuery.value, ignoreCase = true)
+        updateContent(doc.id, newContent)
+        runFind(q)
     }
 
     fun createNewDocument(name: String = "untitled.txt") {

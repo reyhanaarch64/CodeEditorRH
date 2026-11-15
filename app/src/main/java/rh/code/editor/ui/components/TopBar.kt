@@ -31,8 +31,7 @@ fun TopBar(
     canUndo: Boolean = false,
     canRedo: Boolean = false,
     isReadMode: Boolean = false,
-    onToggleRead: (() -> Unit)? = null,
-    onSettings: (() -> Unit)? = null
+    onToggleRead: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -52,12 +51,8 @@ fun TopBar(
             modifier = Modifier.weight(1f)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (onUndo != null) {
-                IconButtonBox(Icons.Default.Undo, onUndo, enabled = canUndo)
-            }
-            if (onRedo != null) {
-                IconButtonBox(Icons.Default.Redo, onRedo, enabled = canRedo)
-            }
+            if (onUndo != null) IconButtonBox(Icons.Default.Undo, onUndo, enabled = canUndo)
+            if (onRedo != null) IconButtonBox(Icons.Default.Redo, onRedo, enabled = canRedo)
             if (onToggleRead != null) {
                 IconButtonBox(
                     if (isReadMode) Icons.Default.Edit else Icons.Default.Visibility,
@@ -80,9 +75,6 @@ fun TopBar(
                         Text("Run", color = OnPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
-            }
-            if (onSettings != null) {
-                IconButtonBox(Icons.Default.Settings, onSettings)
             }
             IconButtonBox(Icons.Default.MoreVert, onMore)
         }

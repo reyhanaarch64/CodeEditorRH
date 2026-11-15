@@ -52,10 +52,22 @@ class MainActivity : ComponentActivity() {
                 val isPreview = viewModel.isPreviewOpen.value
                 val session = viewModel.previewSession.value
 
-                if (isPreview && session != null) {
-                    PreviewScreen(session = session, onBack = { viewModel.closePreview() })
-                } else {
-                    EditorApp(viewModel = viewModel, activeDoc = activeDoc)
+                when {
+                    viewModel.showSettings.value -> {
+                        rh.code.editor.ui.settings.SettingsScreen(
+                            viewModel = viewModel,
+                            onBack = {
+                                viewModel.showSettings.value = false
+                                viewModel.saveSettings(context)
+                            }
+                        )
+                    }
+                    isPreview && session != null -> {
+                        PreviewScreen(session = session, onBack = { viewModel.closePreview() })
+                    }
+                    else -> {
+                        EditorApp(viewModel = viewModel, activeDoc = activeDoc)
+                    }
                 }
             }
         }
@@ -166,7 +178,7 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                     if (isInProject) viewModel.drawerOpen.value = !viewModel.drawerOpen.value
                     else showAddMenu = true
                 },
-                onSearch = { showSearch = true },
+                onSearch = { viewModel.showFindReplace.value = true },
                 onSave = { viewModel.saveActiveDocument(context) },
                 onPreview = { viewModel.openPreview(context) },
                 onMore = { viewModel.moreDrawerOpen.value = true },
@@ -175,8 +187,7 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 canUndo = viewModel.canUndo(activeDoc?.id),
                 canRedo = viewModel.canRedo(activeDoc?.id),
                 isReadMode = viewModel.isReadMode.value,
-                onToggleRead = { viewModel.toggleReadMode() },
-                onSettings = { viewModel.showSettings.value = true }
+                onToggleRead = { viewModel.toggleReadMode() }
             )
 
             // TAB BAR (row 2 - smaller)
@@ -199,7 +210,13 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                         isDark = viewModel.isDarkTheme.value,
                         wallpaperUri = viewModel.wallpaperUri.value,
                         fontSizeSp = viewModel.fontSize.value,
-                        readOnly = viewModel.isReadMode.value
+                        onFontSizeChange = { viewModel.fontSize.value = it },
+                        readOnly = viewModel.isReadMode.value,
+                        wordWrap = viewModel.wordWrap.value,
+                        showLineNumbers = viewModel.showLineNumbers.value,
+                        autoPair = viewModel.autoPair.value,
+                        lazyHighlight = viewModel.lazyHighlight.value,
+                        limitHugeFiles = viewModel.limitHugeFiles.value
                     )
                 }
                 if (!viewModel.isReadMode.value) {
@@ -263,10 +280,18 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
         ) {
             MoreDrawer(
                 isInProject = isInProject,
-                onSearch = { viewModel.moreDrawerOpen.value = false; showSearch = true },
+                onSearch = { viewModel.moreDrawerOpen.value = false; viewModel.showFindReplace.value = true },
                 onLanguage = { viewModel.moreDrawerOpen.value = false; showLanguagePicker = true },
                 onTheme = { viewModel.moreDrawerOpen.value = false; showThemeSettings = true },
                 onSave = { viewModel.moreDrawerOpen.value = false; viewModel.saveActiveDocument(context) },
+                onSettings = {
+                    viewModel.moreDrawerOpen.value = false
+                    viewModel.showSettings.value = true
+                },
+                onFindReplace = {
+                    viewModel.moreDrawerOpen.value = false
+                    viewModel.showFindReplace.value = true
+                },
                 onExitProject = { viewModel.moreDrawerOpen.value = false; viewModel.exitProject() },
                 onClose = { viewModel.moreDrawerOpen.value = false }
             )
@@ -357,27 +382,71 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
         )
     }
 
-    if (showSearch) {
+    if (viewModel.showFindReplace.value) {
+        val matchCount = viewModel.findMatches.value.size
+        val matchIdx = viewModel.findMatchIndex.value
         AlertDialog(
-            onDismissRequest = { showSearch = false },
-            containerColor = Surface, shape = RoundedCornerShape(20.dp),
-            title = { Text("Cari Teks", color = TextPrimary) },
+            onDismissRequest = { viewModel.showFindReplace.value = false },
+            containerColor = Surface,
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("Cari & Ganti", color = TextPrimary) },
             text = {
-                OutlinedTextField(
-                    value = searchQuery, onValueChange = { searchQuery = it },
-                    singleLine = true,
-                    placeholder = { Text("ketik kata kunci...", color = TextSecondary) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = Primary, unfocusedBorderColor = Border, cursorColor = Primary
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = viewModel.findQuery.value,
+                        onValueChange = {
+                            viewModel.findQuery.value = it
+                            viewModel.runFind(it)
+                        },
+                        singleLine = true,
+                        label = { Text("Cari", color = TextSecondary) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = Primary, unfocusedBorderColor = Border, cursorColor = Primary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
-                )
+                    OutlinedTextField(
+                        value = viewModel.replaceQuery.value,
+                        onValueChange = { viewModel.replaceQuery.value = it },
+                        singleLine = true,
+                        label = { Text("Ganti dengan", color = TextSecondary) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = Primary, unfocusedBorderColor = Border, cursorColor = Primary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (matchCount > 0) {
+                        Text(
+                            "hasil: ${matchIdx + 1} / $matchCount",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    } else if (viewModel.findQuery.value.isNotEmpty()) {
+                        Text("tidak ditemukan", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { viewModel.findPrev() }) {
+                            Text("Prev", color = Primary)
+                        }
+                        TextButton(onClick = { viewModel.findNext() }) {
+                            Text("Next", color = Primary)
+                        }
+                        TextButton(onClick = { viewModel.replaceCurrent() }) {
+                            Text("Ganti", color = Primary)
+                        }
+                        TextButton(onClick = { viewModel.replaceAll() }) {
+                            Text("Semua", color = Primary)
+                        }
+                    }
+                }
             },
-            confirmButton = {
-                TextButton(onClick = { showSearch = false }) { Text("Cari", color = Primary) }
-            },
+            confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showSearch = false }) { Text("Batal", color = TextSecondary) }
+                TextButton(onClick = { viewModel.showFindReplace.value = false }) {
+                    Text("Tutup", color = TextSecondary)
+                }
             }
         )
     }
@@ -528,102 +597,5 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 Text(binaryToast!!, color = TextPrimary, fontSize = 13.sp)
             }
         }
-    }
-
-    // settings dialog
-    if (viewModel.showSettings.value) {
-        AlertDialog(
-            onDismissRequest = {
-                viewModel.showSettings.value = false
-                viewModel.saveSettings(context)
-            },
-            containerColor = Surface,
-            shape = RoundedCornerShape(20.dp),
-            title = { Text("Pengaturan", color = TextPrimary) },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Editor", color = TextSecondary, fontSize = 12.sp)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Ukuran font", color = TextPrimary, fontSize = 14.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButtonBox(Icons.Default.Remove, {
-                                if (viewModel.fontSize.value > 10f) viewModel.fontSize.value -= 1f
-                            })
-                            Text(
-                                "${viewModel.fontSize.value.toInt()} sp",
-                                color = TextPrimary,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
-                            IconButtonBox(Icons.Default.Add, {
-                                if (viewModel.fontSize.value < 28f) viewModel.fontSize.value += 1f
-                            })
-                        }
-                    }
-
-                    Text("Preview", color = TextSecondary, fontSize = 12.sp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SurfaceElevated)
-                            .clickable { viewModel.erudaEnabled.value = !viewModel.erudaEnabled.value }
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Eruda console", color = TextPrimary, fontSize = 14.sp)
-                            Text("inject debugger di preview html", color = TextSecondary, fontSize = 11.sp)
-                        }
-                        Text(
-                            if (viewModel.erudaEnabled.value) "ON" else "OFF",
-                            color = if (viewModel.erudaEnabled.value) Primary else TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    Text("Tampilan", color = TextSecondary, fontSize = 12.sp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SurfaceElevated)
-                            .clickable { viewModel.isDarkTheme.value = !viewModel.isDarkTheme.value }
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Dark theme", color = TextPrimary, fontSize = 14.sp)
-                        Text(
-                            if (viewModel.isDarkTheme.value) "ON" else "OFF",
-                            color = if (viewModel.isDarkTheme.value) Primary else TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.showSettings.value = false
-                    viewModel.saveSettings(context)
-                }) { Text("Simpan", color = Primary) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    viewModel.showSettings.value = false
-                }) { Text("Tutup", color = TextSecondary) }
-            }
-        )
     }
 }

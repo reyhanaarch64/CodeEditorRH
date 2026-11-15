@@ -23,13 +23,15 @@ fun MoreDrawer(
     onLanguage: () -> Unit,
     onTheme: () -> Unit,
     onSave: () -> Unit,
+    onSettings: () -> Unit,
+    onFindReplace: () -> Unit,
     onExitProject: () -> Unit,
     onClose: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(260.dp)
+            .width(270.dp)
             .background(Surface)
             .padding(14.dp)
     ) {
@@ -38,10 +40,11 @@ fun MoreDrawer(
             Icon(Icons.Default.Close, null, tint = TextSecondary, modifier = Modifier.size(20.dp).clickable { onClose() })
         }
         Spacer(Modifier.height(16.dp))
-        DrawerItem(Icons.Default.Search, "Cari Teks", onSearch)
+        DrawerItem(Icons.Default.Search, "Cari & Ganti", onFindReplace)
         DrawerItem(Icons.Default.Code, "Pilih Syntax", onLanguage)
         DrawerItem(Icons.Default.Palette, "Theme & Wallpaper", onTheme)
         DrawerItem(Icons.Default.Save, "Save", onSave)
+        DrawerItem(Icons.Default.Settings, "Pengaturan", onSettings)
         if (isInProject) {
             Spacer(Modifier.height(8.dp))
             DrawerItem(Icons.Default.Logout, "Keluar Proyek", onExitProject)
