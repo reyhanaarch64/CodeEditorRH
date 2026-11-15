@@ -119,7 +119,7 @@ private fun TreeItem(
     onFileClick: (FileNode) -> Unit,
     onCreateInPath: (parentPath: String, isFolder: Boolean) -> Unit
 ) {
-    var expanded by remember(node.path) { mutableStateOf(depth < 1) }
+    var expanded by remember(node.path) { mutableStateOf(depth < 2) }
     val icon = getFileIcon(node)
     val color = getFileColor(node)
 
@@ -207,21 +207,15 @@ private fun TreeItem(
 }
 
 private fun getFileIcon(node: FileNode): ImageVector {
+    // hanya icon yang pasti ada di material icons
     if (node.isDirectory) return Icons.Default.Folder
-    return when (node.name.substringAfterLast('.').lowercase()) {
-        "js", "jsx", "mjs" -> Icons.Default.Javascript
-        "ts", "tsx" -> Icons.Default.Code
-        "html", "htm" -> Icons.Default.Html
-        "css", "scss" -> Icons.Default.Css
-        "kt", "kts" -> Icons.Default.Code
-        "json" -> Icons.Default.DataObject
-        "md" -> Icons.Default.Description
-        "png", "jpg", "jpeg", "gif", "svg", "webp" -> Icons.Default.Image
-        "gitignore", "git" -> Icons.Default.Source
-        "xml" -> Icons.Default.Code
-        "php" -> Icons.Default.Php
-        "py" -> Icons.Default.Code
-        "java" -> Icons.Default.Code
+    val ext = node.name.substringAfterLast('.', "").lowercase()
+    return when (ext) {
+        "js", "jsx", "mjs", "ts", "tsx", "kt", "kts", "java", "py", "php",
+        "go", "c", "cpp", "h", "rs", "rb", "swift", "html", "htm", "xml",
+        "css", "scss", "sass", "json", "yml", "yaml", "sql", "sh", "bash" -> Icons.Default.Code
+        "md", "markdown", "txt", "log" -> Icons.Default.Description
+        "png", "jpg", "jpeg", "gif", "webp", "svg", "ico" -> Icons.Default.Image
         else -> Icons.Default.InsertDriveFile
     }
 }
