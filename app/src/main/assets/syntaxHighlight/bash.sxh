@@ -1,12 +1,18 @@
-// version 2
+// sxh v3
 lang Bash {
-ext sh bash
-color keyword #FF7B72
-color string #A5D6FF
-color comment #8B949E
-color default #E6EDF3
-keyword if then else fi for while do done case esac function return echo export source
-match string /"(?:[^"\\]|\\.)*"/
-match string /'(?:[^'\\]|\\.)*'/
-match comment /#.*$/
+  ext sh bash
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color default #E6EDF3
+
+  keyword {
+    if then else elif fi for while do done case esac function return echo export source
+    local readonly break continue exit shift
+  }
+
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /'(?:[^'\\]|\\.)*'/
+  match comment /#.*$/
 }

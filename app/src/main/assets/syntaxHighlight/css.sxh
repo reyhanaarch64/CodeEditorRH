@@ -1,13 +1,20 @@
-// version 2
+// sxh v3
 lang CSS {
-ext css scss sass
-color keyword #FF7B72
-color string #A5D6FF
-color comment #8B949E
-color number #79C0FF
-color default #E6EDF3
-keyword color background margin padding border font display flex grid position width height top left right bottom media import keyframes animation transition
-match comment /\/\*[\s\S]*?\*\//
-match string /"(?:[^"\\]|\\.)*"/
-match number /\b\d+(\.\d+)?(px|em|rem|%|vh|vw)?\b/
+  ext css scss sass
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color number #79C0FF
+  color default #E6EDF3
+
+  keyword {
+    color background margin padding border font display flex grid position width height
+    top left right bottom media import keyframes animation transition opacity z-index
+  }
+
+  match comment /\/\*[\s\S]*?\*\//
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /'(?:[^'\\]|\\.)*'/
+  match number /\b\d+(\.\d+)?(px|em|rem|%|vh|vw|pt|cm|mm)?\b/
 }

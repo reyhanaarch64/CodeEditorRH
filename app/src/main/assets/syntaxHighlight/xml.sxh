@@ -1,11 +1,14 @@
-// version 2
+// sxh v3
 lang XML {
-ext xml xsl svg
-color tag #7EE787
-color string #A5D6FF
-color comment #8B949E
-color default #E6EDF3
-match comment /<!--[\s\S]*?-->/
-match string /"(?:[^"\\]|\\.)*"/
-match tag /<\/?[A-Za-z][A-Za-z0-9:_-]*/
+  ext xml xsl svg
+
+  color tag #7EE787
+  color string #A5D6FF
+  color comment #8B949E
+  color default #E6EDF3
+
+  match comment /<!--[\s\S]*?-->/
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /'(?:[^'\\]|\\.)*'/
+  match tag /<\/?[A-Za-z][A-Za-z0-9:_-]*/
 }

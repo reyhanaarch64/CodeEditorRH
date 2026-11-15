@@ -1,14 +1,23 @@
-// version 2
+// sxh v3
 lang Kotlin {
-ext kt kts
-color keyword #FF7B72
-color string #A5D6FF
-color comment #8B949E
-color number #79C0FF
-color default #E6EDF3
-keyword fun val var if else when for while do return class object interface data sealed enum package import as is in out by get set constructor init companion this super true false null try catch finally throw private public protected internal override open final abstract suspend
-match string /"(?:[^"\\]|\\.)*"/
-match comment /\/\/.*$/
-match comment /\/\*[\s\S]*?\*\//
-match number /\b\d+(\.\d+)?\b/
+  ext kt kts
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color number #79C0FF
+  color default #E6EDF3
+
+  keyword {
+    fun val var if else when for while do return class object interface data sealed enum
+    package import as is in out by get set constructor init companion this super true false
+    null try catch finally throw private public protected internal override open final
+    abstract suspend typealias
+  }
+
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /"""[\s\S]*?"""/
+  match comment /\/\/.*$/
+  match comment /\/\*[\s\S]*?\*\//
+  match number /\b\d+(\.\d+)?([eE][+-]?\d+)?[fFdDlL]?\b/
 }

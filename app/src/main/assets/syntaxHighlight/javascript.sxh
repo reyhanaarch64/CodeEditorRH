@@ -1,15 +1,23 @@
-// version 2
+// sxh v3
 lang JavaScript {
-ext js jsx mjs cjs
-color keyword #FF7B72
-color string #A5D6FF
-color comment #8B949E
-color number #79C0FF
-color default #E6EDF3
-keyword var let const function return if else for while do switch case break continue try catch finally throw new this class extends super import export default from async await true false null undefined typeof instanceof of in
-match string /"(?:[^"\\]|\\.)*"/
-match string /'(?:[^'\\]|\\.)*'/
-match comment /\/\/.*$/
-match comment /\/\*[\s\S]*?\*\//
-match number /\b\d+(\.\d+)?\b/
+  ext js jsx mjs cjs
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color number #79C0FF
+  color default #E6EDF3
+
+  keyword {
+    var let const function return if else for while do switch case break continue
+    try catch finally throw new this class extends super import export default from
+    async await true false null undefined typeof instanceof of in yield
+  }
+
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /'(?:[^'\\]|\\.)*'/
+  match string /`(?:[^`\\]|\\.)*`/
+  match comment /\/\/.*$/
+  match comment /\/\*[\s\S]*?\*\//
+  match number /\b\d+(\.\d+)?([eE][+-]?\d+)?\b/
 }

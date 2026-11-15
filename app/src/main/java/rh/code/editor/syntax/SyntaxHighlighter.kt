@@ -6,8 +6,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.util.regex.Pattern
 
 data class MatchRule(
@@ -17,8 +15,8 @@ data class MatchRule(
 )
 
 data class RegionRule(
-    val start: String,
-    val end: String,
+    val start: String,   // contoh: <script  (boleh tanpa > biar support atribut)
+    val end: String,     // contoh: </script>
     val lang: String
 )
 
@@ -43,8 +41,8 @@ object SyntaxHighlighter {
             val files = context.assets.list("syntaxHighlight") ?: return
             for (file in files) {
                 if (!file.endsWith(".sxh")) continue
-                val rule = parseV2(context, "syntaxHighlight/$file")
-                if (rule != null) {
+                val rules = parseFile(context, "syntaxHighlight/$file")
+                for (rule in rules) {
                     for (ext in rule.extensions) {
                         cache[ext.lowercase()] = rule
                     }
@@ -67,105 +65,206 @@ object SyntaxHighlighter {
         }
     }
 
-    /** Format v2 - custom language, bukan yaml */
-    private fun parseV2(context: Context, path: String): SyntaxRuleV2? {
+    /** parser versi 3 — brace based, 1 file bisa banyak lang */
+    private fun parseFile(context: Context, path: String): List<SyntaxRuleV2> {
+        val result = mutableListOf<SyntaxRuleV2>()
         try {
             val text = context.assets.open(path).bufferedReader().use { it.readText() }
-            if (!text.contains("lang ") && !text.contains("version 2")) {
-                // skip file v1 lama
-                return null
-            }
-
-            var name = "Unknown"
-            val extensions = mutableListOf<String>()
-            val colors = mutableMapOf<String, Color>()
-            val keywords = mutableSetOf<String>()
-            val matches = mutableListOf<MatchRule>()
-            val regions = mutableListOf<RegionRule>()
-
-            val lines = text.lines()
+            val tokens = tokenize(text)
             var i = 0
-            while (i < lines.size) {
-                val raw = lines[i].trim()
-                i++
-                if (raw.isEmpty() || raw.startsWith("//") || raw.startsWith("#")) continue
 
-                when {
-                    raw.startsWith("lang ") -> {
-                        // lang JavaScript {
-                        name = raw.removePrefix("lang ").substringBefore("{").trim()
+            while (i < tokens.size) {
+                if (tokens[i] == "lang" && i + 1 < tokens.size) {
+                    val name = tokens[i + 1]
+                    i += 2
+                    if (i < tokens.size && tokens[i] == "{") {
+                        i++
+                        val (rule, next) = parseLangBlock(name, tokens, i)
+                        if (rule != null) result.add(rule)
+                        i = next
                     }
-                    raw.startsWith("ext ") -> {
-                        extensions.addAll(
-                            raw.removePrefix("ext ").split(Regex("\\s+")).map { it.trim().lowercase() }.filter { it.isNotEmpty() }
-                        )
-                    }
-                    raw.startsWith("color ") -> {
-                        // color keyword #FF7B72
-                        val parts = raw.removePrefix("color ").trim().split(Regex("\\s+"))
-                        if (parts.size >= 2) colors[parts[0]] = parseColor(parts[1])
-                    }
-                    raw.startsWith("keyword ") -> {
-                        keywords.addAll(
-                            raw.removePrefix("keyword ").split(Regex("\\s+|,")).map { it.trim() }.filter { it.isNotEmpty() }
-                        )
-                    }
-                    raw.startsWith("match ") -> {
-                        // match string /regex/
-                        val rest = raw.removePrefix("match ").trim()
-                        val namePart = rest.substringBefore(" ").trim()
-                        val regexPart = rest.substringAfter(" ").trim()
-                        if (regexPart.startsWith("/") && regexPart.length > 2) {
-                            val body = regexPart.removePrefix("/").let {
-                                if (it.endsWith("/")) it.dropLast(1) else it
-                            }
-                            try {
-                                val color = colors[namePart] ?: colors["default"] ?: Color.White
-                                matches.add(MatchRule(namePart, Pattern.compile(body), color))
-                            } catch (_: Exception) {}
+                } else {
+                    i++
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
+    private fun tokenize(src: String): List<String> {
+        val out = mutableListOf<String>()
+        var i = 0
+        val s = src
+        while (i < s.length) {
+            val c = s[i]
+            when {
+                c.isWhitespace() -> i++
+                c == '/' && i + 1 < s.length && s[i + 1] == '/' -> {
+                    // skip line comment
+                    while (i < s.length && s[i] != '\n') i++
+                }
+                c == '/' && i + 1 < s.length && s[i + 1] == '*' -> {
+                    // skip block comment
+                    i += 2
+                    while (i + 1 < s.length && !(s[i] == '*' && s[i + 1] == '/')) i++
+                    i += 2
+                }
+                c == '{' || c == '}' -> {
+                    out.add(c.toString())
+                    i++
+                }
+                c == '/' -> {
+                    // regex literal /.../
+                    val start = i
+                    i++
+                    while (i < s.length) {
+                        if (s[i] == '\\' && i + 1 < s.length) {
+                            i += 2
+                            continue
                         }
+                        if (s[i] == '/') break
+                        i++
                     }
-                    raw.startsWith("region ") -> {
-                        // region script <script> </script> JavaScript
-                        val rest = raw.removePrefix("region ").trim()
-                        val tokens = tokenizeRegion(rest)
-                        if (tokens.size >= 4) {
-                            regions.add(RegionRule(tokens[1], tokens[2], tokens[3]))
+                    if (i < s.length) i++ // consume closing /
+                    out.add(s.substring(start, i))
+                }
+                c == '"' || c == '\'' -> {
+                    val quote = c
+                    val start = i
+                    i++
+                    while (i < s.length && s[i] != quote) {
+                        if (s[i] == '\\' && i + 1 < s.length) i++
+                        i++
+                    }
+                    if (i < s.length) i++
+                    out.add(s.substring(start, i))
+                }
+                else -> {
+                    val start = i
+                    while (i < s.length && !s[i].isWhitespace() && s[i] != '{' && s[i] != '}' && s[i] != '/') {
+                        i++
+                    }
+                    if (i > start) out.add(s.substring(start, i))
+                }
+            }
+        }
+        return out
+    }
+
+    private fun parseLangBlock(name: String, tokens: List<String>, start: Int): Pair<SyntaxRuleV2?, Int> {
+        val extensions = mutableListOf<String>()
+        val colors = mutableMapOf<String, Color>()
+        val keywords = mutableSetOf<String>()
+        val matches = mutableListOf<MatchRule>()
+        val regions = mutableListOf<RegionRule>()
+        var i = start
+
+        while (i < tokens.size && tokens[i] != "}") {
+            when (tokens[i]) {
+                "ext" -> {
+                    i++
+                    while (i < tokens.size && tokens[i] != "}" && tokens[i] != "color" &&
+                        tokens[i] != "keyword" && tokens[i] != "match" && tokens[i] != "region" &&
+                        tokens[i] != "ext" && tokens[i] != "lang") {
+                        extensions.add(tokens[i].lowercase())
+                        i++
+                    }
+                }
+                "color" -> {
+                    // color name #hex
+                    if (i + 2 < tokens.size) {
+                        colors[tokens[i + 1]] = parseColor(tokens[i + 2])
+                        i += 3
+                    } else i++
+                }
+                "keyword" -> {
+                    i++
+                    if (i < tokens.size && tokens[i] == "{") {
+                        i++
+                        while (i < tokens.size && tokens[i] != "}") {
+                            // buang koma kalau ada
+                            val w = tokens[i].trim().removeSuffix(",")
+                            if (w.isNotEmpty()) keywords.add(w)
+                            i++
+                        }
+                        if (i < tokens.size && tokens[i] == "}") i++
+                    } else {
+                        // fallback: keyword satu baris
+                        while (i < tokens.size && tokens[i] != "}" && tokens[i] != "color" &&
+                            tokens[i] != "match" && tokens[i] != "region" && tokens[i] != "keyword" &&
+                            tokens[i] != "ext" && tokens[i] != "lang") {
+                            val w = tokens[i].trim().removeSuffix(",")
+                            if (w.isNotEmpty()) keywords.add(w)
+                            i++
                         }
                     }
                 }
+                "match" -> {
+                    // match name /regex/
+                    if (i + 2 < tokens.size) {
+                        val mName = tokens[i + 1]
+                        val regexTok = tokens[i + 2]
+                        if (regexTok.startsWith("/") && regexTok.endsWith("/") && regexTok.length > 2) {
+                            val body = regexTok.substring(1, regexTok.length - 1)
+                            try {
+                                val color = colors[mName] ?: colors["default"] ?: Color.White
+                                matches.add(MatchRule(mName, Pattern.compile(body), color))
+                            } catch (_: Exception) {}
+                        }
+                        i += 3
+                    } else i++
+                }
+                "region" -> {
+                    i++
+                    if (i < tokens.size && tokens[i] == "{") {
+                        i++
+                        var rStart = ""
+                        var rEnd = ""
+                        var rLang = ""
+                        while (i < tokens.size && tokens[i] != "}") {
+                            when (tokens[i]) {
+                                "start" -> {
+                                    if (i + 1 < tokens.size) {
+                                        rStart = tokens[i + 1]
+                                        i += 2
+                                    } else i++
+                                }
+                                "end" -> {
+                                    if (i + 1 < tokens.size) {
+                                        rEnd = tokens[i + 1]
+                                        i += 2
+                                    } else i++
+                                }
+                                "lang" -> {
+                                    if (i + 1 < tokens.size) {
+                                        rLang = tokens[i + 1]
+                                        i += 2
+                                    } else i++
+                                }
+                                else -> i++
+                            }
+                        }
+                        if (rStart.isNotEmpty() && rEnd.isNotEmpty() && rLang.isNotEmpty()) {
+                            regions.add(RegionRule(rStart, rEnd, rLang))
+                        }
+                        if (i < tokens.size && tokens[i] == "}") i++
+                    } else {
+                        // fallback format lama: region name <start> <end> Lang
+                        // skip
+                        i++
+                    }
+                }
+                else -> i++
             }
-
-            if (extensions.isEmpty() && name != "Unknown") {
-                extensions.add(name.lowercase())
-            }
-            return SyntaxRuleV2(name, extensions, colors, keywords, matches, regions)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return null
         }
-    }
+        if (i < tokens.size && tokens[i] == "}") i++
 
-    private fun tokenizeRegion(s: String): List<String> {
-        // region name <start> <end> LangName
-        val result = mutableListOf<String>()
-        var i = 0
-        while (i < s.length) {
-            while (i < s.length && s[i].isWhitespace()) i++
-            if (i >= s.length) break
-            if (s[i] == '<') {
-                val end = s.indexOf('>', i)
-                if (end > i) {
-                    result.add(s.substring(i, end + 1))
-                    i = end + 1
-                } else break
-            } else {
-                val start = i
-                while (i < s.length && !s[i].isWhitespace()) i++
-                result.add(s.substring(start, i))
-            }
+        if (extensions.isEmpty() && name.isNotEmpty()) {
+            extensions.add(name.lowercase())
         }
-        return result
+        return SyntaxRuleV2(name, extensions, colors, keywords, matches, regions) to i
     }
 
     fun getRuleForExtension(ext: String): SyntaxRuleV2? = cache[ext.lowercase()]
@@ -186,11 +285,9 @@ object SyntaxHighlighter {
             }
         }
 
-        // handle regions dulu (html script/style dll)
         if (rule.regions.isNotEmpty()) {
             return highlightWithRegions(text, rule, isDark, fallback)
         }
-
         return highlightPlain(text, rule, fallback)
     }
 
@@ -217,32 +314,32 @@ object SyntaxHighlighter {
                 }
 
                 if (nearest == null) {
-                    // sisa pakai rule utama
                     appendHighlighted(text.substring(pos), rule, fallback)
                     break
                 }
 
-                // sebelum region
                 if (nearestIdx > pos) {
                     appendHighlighted(text.substring(pos, nearestIdx), rule, fallback)
                 }
 
-                val endTag = nearest.end
-                val contentStart = nearestIdx + nearest.start.length
-                val endIdx = lower.indexOf(endTag, contentStart, ignoreCase = true)
+                // cari penutup tag buka (support atribut <script type=...>)
+                var contentStart = nearestIdx + nearest.start.length
+                val gt = text.indexOf('>', contentStart)
+                if (gt >= 0) contentStart = gt + 1
+
+                val endIdx = lower.indexOf(nearest.end, contentStart, ignoreCase = true)
 
                 if (endIdx < 0) {
-                    // tag penutup tidak ketemu
                     appendHighlighted(text.substring(nearestIdx), rule, fallback)
                     break
                 }
 
-                // tag buka
+                // tag buka (termasuk atribut)
                 withStyle(SpanStyle(color = rule.colors["tag"] ?: rule.colors["keyword"] ?: fallback)) {
                     append(text.substring(nearestIdx, contentStart))
                 }
 
-                // isi region → bahasa lain
+                // isi region
                 val inner = text.substring(contentStart, endIdx)
                 val innerRule = getRuleForExtension(nearest.lang.lowercase())
                     ?: cache[nearest.lang.lowercase()]
@@ -253,7 +350,7 @@ object SyntaxHighlighter {
                 }
 
                 // tag tutup
-                val afterEnd = endIdx + endTag.length
+                val afterEnd = endIdx + nearest.end.length
                 withStyle(SpanStyle(color = rule.colors["tag"] ?: rule.colors["keyword"] ?: fallback)) {
                     append(text.substring(endIdx, afterEnd))
                 }
@@ -267,7 +364,7 @@ object SyntaxHighlighter {
         val keywordColor = rule.colors["keyword"] ?: Color(0xFFFF7B72)
         val spans = Array(text.length) { defaultColor }
 
-        // regex matches
+        // regex matches dulu (string, comment, number dll)
         for (m in rule.matches) {
             val matcher = m.pattern.matcher(text)
             while (matcher.find()) {
@@ -279,7 +376,7 @@ object SyntaxHighlighter {
             }
         }
 
-        // keywords (word boundary)
+        // keywords hanya di posisi yang masih default (jadi gak nimpah string/comment)
         if (rule.keywords.isNotEmpty()) {
             val word = Pattern.compile("\\b[A-Za-z_][A-Za-z0-9_]*\\b")
             val matcher = word.matcher(text)

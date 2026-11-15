@@ -1,11 +1,16 @@
-// version 2
+// sxh v3
 lang JSON {
-ext json
-color string #A5D6FF
-color number #79C0FF
-color keyword #FF7B72
-color default #E6EDF3
-keyword true false null
-match string /"(?:[^"\\]|\\.)*"/
-match number /-?\b\d+(\.\d+)?\b/
+  ext json
+
+  color string #A5D6FF
+  color number #79C0FF
+  color keyword #FF7B72
+  color default #E6EDF3
+
+  keyword {
+    true false null
+  }
+
+  match string /"(?:[^"\\]|\\.)*"/
+  match number /-?\b\d+(\.\d+)?([eE][+-]?\d+)?\b/
 }

@@ -1,13 +1,21 @@
-// version 2
+// sxh v3
 lang Go {
-ext go
-color keyword #FF7B72
-color string #A5D6FF
-color comment #8B949E
-color number #79C0FF
-color default #E6EDF3
-keyword func package import var const type struct interface map chan if else for range return go defer select switch case break continue true false nil
-match string /"(?:[^"\\]|\\.)*"/
-match comment /\/\/.*$/
-match number /\b\d+(\.\d+)?\b/
+  ext go
+
+  color keyword #FF7B72
+  color string #A5D6FF
+  color comment #8B949E
+  color number #79C0FF
+  color default #E6EDF3
+
+  keyword {
+    func package import var const type struct interface map chan if else for range return
+    go defer select switch case break continue true false nil fallthrough goto
+  }
+
+  match string /"(?:[^"\\]|\\.)*"/
+  match string /`[^`]*`/
+  match comment /\/\/.*$/
+  match comment /\/\*[\s\S]*?\*\//
+  match number /\b\d+(\.\d+)?\b/
 }
