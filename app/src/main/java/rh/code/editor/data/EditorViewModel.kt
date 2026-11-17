@@ -383,27 +383,20 @@ class EditorViewModel : ViewModel() {
 
     private fun buildTree(dir: File): List<FileNode> {
         val nodes = mutableListOf<FileNode>()
-        val listed = try {
-            dir.listFiles()
-        } catch (_: Exception) {
-            null
-        } ?: return emptyList()
-
-        // folder dulu, lalu file; skip hidden (titik) biar bersih
+        val listed = try { dir.listFiles() } catch (_: Exception) { null } ?: return emptyList()
         val files = listed
-            .filter { !it.name.startsWith(".") }
+            .filter { f ->
+                val n = f.name
+                !n.startsWith(".") // skip hidden
+            }
             .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
-
         for (f in files) {
             try {
-                if (f.isDirectory) {
-                    nodes.add(FileNode(f.name, f.absolutePath, true, buildTree(f)))
-                } else if (f.isFile) {
-                    nodes.add(FileNode(f.name, f.absolutePath, false, emptyList()))
+                when {
+                    f.isDirectory -> nodes.add(FileNode(f.name, f.absolutePath, true, buildTree(f)))
+                    f.isFile -> nodes.add(FileNode(f.name, f.absolutePath, false, emptyList()))
                 }
-            } catch (_: Exception) {
-                // skip entry yang error permission
-            }
+            } catch (_: Exception) { }
         }
         return nodes
     }

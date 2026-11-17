@@ -1,10 +1,5 @@
 package rh.code.editor.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -37,6 +32,29 @@ fun ProjectDrawer(
     onClose: () -> Unit,
     treeVersion: Int = 0
 ) {
+    // track folder path mana yang lagi di-expand
+    val expandedPaths = remember(treeVersion) { mutableStateOf(setOf<String>()) }
+
+    // default: expand semua folder di root level
+    LaunchedEffect(treeVersion, tree) {
+        if (expandedPaths.value.isEmpty() && tree.isNotEmpty()) {
+            expandedPaths.value = tree.filter { it.isDirectory }.map { it.path }.toSet()
+        }
+    }
+
+    fun toggle(path: String) {
+        expandedPaths.value = if (path in expandedPaths.value) {
+            expandedPaths.value - path
+        } else {
+            expandedPaths.value + path
+        }
+    }
+
+    // flatten tree sesuai expanded state
+    val flatRows = remember(tree, expandedPaths.value, treeVersion) {
+        buildFlatList(tree, expandedPaths.value, depth = 0)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -49,13 +67,21 @@ fun ProjectDrawer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Folder, null, tint = Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(projectName, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
+                Text(
+                    projectName,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    maxLines = 1
+                )
             }
-            Icon(Icons.Default.Close, "Close", tint = TextSecondary,
-                modifier = Modifier.size(20.dp).clickable { onClose() })
+            Icon(
+                Icons.Default.Close, "Close", tint = TextSecondary,
+                modifier = Modifier.size(20.dp).clickable { onClose() }
+            )
         }
 
         Spacer(Modifier.height(10.dp))
@@ -76,33 +102,32 @@ fun ProjectDrawer(
 
         Spacer(Modifier.height(12.dp))
 
-        // root + button
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Files", color = TextSecondary, fontSize = 12.sp)
+            Text("Files (${flatRows.count { !it.node.isDirectory }})", color = TextSecondary, fontSize = 12.sp)
             Row {
-                Icon(Icons.Default.NoteAdd, "file", tint = Primary,
-                    modifier = Modifier.size(18.dp).clickable {
-                        // create at project root - parent path empty means root, handled outside
-                        onCreateInPath("", false)
-                    })
+                Icon(
+                    Icons.Default.NoteAdd, "file", tint = Primary,
+                    modifier = Modifier.size(18.dp).clickable { onCreateInPath("", false) }
+                )
                 Spacer(Modifier.width(10.dp))
-                Icon(Icons.Default.CreateNewFolder, "folder", tint = Primary,
-                    modifier = Modifier.size(18.dp).clickable {
-                        onCreateInPath("", true)
-                    })
+                Icon(
+                    Icons.Default.CreateNewFolder, "folder", tint = Primary,
+                    modifier = Modifier.size(18.dp).clickable { onCreateInPath("", true) }
+                )
             }
         }
 
         key(treeVersion) {
             LazyColumn(modifier = Modifier.weight(1f)) {
-                items(tree, key = { it.path }) { node ->
-                    TreeItem(
-                        node = node,
-                        depth = 0,
+                items(flatRows, key = { it.node.path }) { row ->
+                    FlatTreeRow(
+                        row = row,
+                        expanded = row.node.path in expandedPaths.value,
+                        onToggle = { toggle(row.node.path) },
                         onFileClick = onFileClick,
                         onCreateInPath = onCreateInPath
                     )
@@ -112,108 +137,88 @@ fun ProjectDrawer(
     }
 }
 
+private data class FlatRow(
+    val node: FileNode,
+    val depth: Int
+)
+
+private fun buildFlatList(
+    nodes: List<FileNode>,
+    expanded: Set<String>,
+    depth: Int
+): List<FlatRow> {
+    val out = mutableListOf<FlatRow>()
+    for (n in nodes) {
+        out.add(FlatRow(n, depth))
+        if (n.isDirectory && n.path in expanded && n.children.isNotEmpty()) {
+            out.addAll(buildFlatList(n.children, expanded, depth + 1))
+        }
+    }
+    return out
+}
+
 @Composable
-private fun TreeItem(
-    node: FileNode,
-    depth: Int,
+private fun FlatTreeRow(
+    row: FlatRow,
+    expanded: Boolean,
+    onToggle: () -> Unit,
     onFileClick: (FileNode) -> Unit,
     onCreateInPath: (parentPath: String, isFolder: Boolean) -> Unit
 ) {
-    var expanded by remember(node.path) { mutableStateOf(depth < 2) }
+    val node = row.node
     val icon = getFileIcon(node)
     val color = getFileColor(node)
 
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .clickable {
-                    if (node.isDirectory) {
-                        expanded = !expanded
-                    } else {
-                        onFileClick(node)
-                    }
-                }
-                .padding(start = (depth * 12).dp, top = 5.dp, bottom = 5.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (node.isDirectory) {
-                Icon(
-                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
-                    null, tint = TextSecondary, modifier = Modifier.size(16.dp)
-                )
-            } else {
-                Spacer(Modifier.width(16.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable {
+                if (node.isDirectory) onToggle()
+                else onFileClick(node)
             }
-            Spacer(Modifier.width(2.dp))
-            Icon(icon, null, tint = color, modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                node.name,
-                color = TextPrimary,
-                fontSize = 13.sp,
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
+            .padding(start = (row.depth * 14).dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (node.isDirectory) {
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                null,
+                tint = TextSecondary,
+                modifier = Modifier.size(16.dp)
             )
-            // + hanya di folder
-            if (node.isDirectory) {
-                Icon(
-                    Icons.Default.Add, "tambah di folder ini",
-                    tint = TextSecondary,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable {
-                            onCreateInPath(node.path, false) // default file; long-ish bisa folder
-                        }
-                )
-            }
+        } else {
+            Spacer(Modifier.width(16.dp))
         }
-
-        AnimatedVisibility(
-            visible = expanded && node.isDirectory,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            Column {
-                // tombol buat file/folder di dalam folder ini
-                if (expanded) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = ((depth + 1) * 12 + 18).dp, top = 2.dp, bottom = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "+ file",
-                            color = Primary,
-                            fontSize = 11.sp,
-                            modifier = Modifier.clickable { onCreateInPath(node.path, false) }
-                        )
-                        Text(
-                            "+ folder",
-                            color = Primary,
-                            fontSize = 11.sp,
-                            modifier = Modifier.clickable { onCreateInPath(node.path, true) }
-                        )
-                    }
-                }
-                node.children.forEach { child ->
-                    TreeItem(child, depth + 1, onFileClick, onCreateInPath)
-                }
-            }
+        Spacer(Modifier.width(2.dp))
+        Icon(icon, null, tint = color, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            node.name,
+            color = TextPrimary,
+            fontSize = 13.sp,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+        )
+        if (node.isDirectory) {
+            Icon(
+                Icons.Default.Add, "tambah",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onCreateInPath(node.path, false) }
+            )
         }
     }
 }
 
 private fun getFileIcon(node: FileNode): ImageVector {
-    // hanya icon yang pasti ada di material icons
     if (node.isDirectory) return Icons.Default.Folder
     val ext = node.name.substringAfterLast('.', "").lowercase()
     return when (ext) {
         "js", "jsx", "mjs", "ts", "tsx", "kt", "kts", "java", "py", "php",
-        "go", "c", "cpp", "h", "rs", "rb", "swift", "html", "htm", "xml",
-        "css", "scss", "sass", "json", "yml", "yaml", "sql", "sh", "bash" -> Icons.Default.Code
+        "go", "c", "cpp", "h", "rs", "rb", "html", "htm", "xml", "css",
+        "scss", "json", "yml", "yaml", "sql", "sh", "bash" -> Icons.Default.Code
         "md", "markdown", "txt", "log" -> Icons.Default.Description
         "png", "jpg", "jpeg", "gif", "webp", "svg", "ico" -> Icons.Default.Image
         else -> Icons.Default.InsertDriveFile
@@ -233,7 +238,6 @@ private fun getFileColor(node: FileNode): Color {
         "php" -> Color(0xFF777BB4)
         "py" -> Color(0xFF3572A5)
         "java" -> Color(0xFFB07219)
-        "gitignore" -> Color(0xFFF05033)
         else -> TextSecondary
     }
 }
