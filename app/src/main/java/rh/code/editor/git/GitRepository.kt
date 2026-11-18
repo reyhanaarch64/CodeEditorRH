@@ -148,9 +148,13 @@ class GitRepository(private val root: File) {
             val command = git.push().setRemote("origin")
                 .setRefSpecs(org.eclipse.jgit.transport.RefSpec("HEAD:refs/heads/$branch"))
             credentials(token)?.let(command::setCredentialsProvider)
-            val result = command.call().firstOrNull()
-            check(result == null || result.status.name == "OK" || result.status.name == "UP_TO_DATE") {
-                "push gagal: ${result?.status}"
+            val updates = command.call().flatMap { it.remoteUpdates }
+            val rejected = updates.filter {
+                it.status != org.eclipse.jgit.transport.RemoteRefUpdate.Status.OK &&
+                    it.status != org.eclipse.jgit.transport.RemoteRefUpdate.Status.UP_TO_DATE
+            }
+            check(rejected.isEmpty()) {
+                "push gagal: ${rejected.joinToString { "${it.remoteName}: ${it.status}" }}"
             }
         }
     }
