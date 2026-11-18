@@ -25,6 +25,8 @@ fun MoreDrawer(
     onSave: () -> Unit,
     onSettings: () -> Unit,
     onFindReplace: () -> Unit,
+    onGit: () -> Unit,
+    onFormat: () -> Unit,
     onExitProject: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -41,6 +43,8 @@ fun MoreDrawer(
         }
         Spacer(Modifier.height(16.dp))
         DrawerItem(Icons.Default.Search, "Cari & Ganti", onFindReplace)
+        DrawerItem(Icons.Default.Source, "Git & GitHub", onGit)
+        DrawerItem(Icons.Default.FormatAlignLeft, "Format Code", onFormat)
         DrawerItem(Icons.Default.Code, "Pilih Syntax", onLanguage)
         DrawerItem(Icons.Default.Palette, "Theme & Wallpaper", onTheme)
         DrawerItem(Icons.Default.Save, "Save", onSave)

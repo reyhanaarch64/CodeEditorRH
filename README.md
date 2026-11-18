@@ -7,15 +7,17 @@ android code editor dengan fitur:
 - buat project di `/sdcard/codeEditorRH/projectName/`
 - akses storage pakai manage all files
 - custom syntax highlight (format `.sxh` version 3)
+- format code untuk JavaScript, Java, HTML, CSS, Python, dan PHP
 - preview html via localhost (nanohttpd)
 - support relative asset html
+- git lokal dan integrasi github lewat https
 - ui rounded khas ios + material icons
 
 ## identitas
 
 - package: `rh.code.editor`
 - label: Code Editor
-- version: 1.0 (versionCode 1)
+- version: 1.1 (versionCode 2)
 
 ## build
 
@@ -34,6 +36,21 @@ atau build lokal:
 ## permission
 
 aplikasi membutuhkan **kelola semua file** (manage external storage) untuk fitur project di `/sdcard/codeEditorRH/`.
+
+## Git & GitHub
+
+Menu **Git & GitHub** menyediakan clone repository GitHub, status perubahan,
+stage/unstage, diff, commit, riwayat, serta pull dan push melalui HTTPS.
+Repository privat membutuhkan GitHub Personal Access Token. Token disimpan
+sebagai ciphertext AES-GCM di penyimpanan privat aplikasi; kuncinya dikelola
+Android Keystore. Remote hanya menerima URL HTTPS `github.com`, dan push tidak
+melakukan force-push.
+
+## Format Code
+
+Formatter berjalan lokal/offline: Prettier untuk JavaScript, HTML, CSS, dan PHP;
+Ruff WASM untuk Python; JavaParser untuk Java. Formatter membatasi input sampai
+1 MB agar tidak membebani memori perangkat.
 
 ## format .sxh (version 3)
 

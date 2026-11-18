@@ -26,6 +26,7 @@ class EditorViewModel : ViewModel() {
     val currentProject = mutableStateOf<ProjectInfo?>(null)
     val drawerOpen = mutableStateOf(false)
     val moreDrawerOpen = mutableStateOf(false)
+    val showGitScreen = mutableStateOf(false)
     val isDarkTheme = mutableStateOf(true)
     val wallpaperUri = mutableStateOf<Uri?>(null)
     val treeVersion = mutableStateOf(0) // naikkan biar tree recompose
@@ -409,6 +410,21 @@ class EditorViewModel : ViewModel() {
                     if (doc.path != null) File(doc.path).writeText(doc.content)
                     else if (doc.uri != null) {
                         context.contentResolver.openOutputStream(doc.uri)?.use { it.write(doc.content.toByteArray()) }
+                    }
+
+                    suspend fun saveProjectDocuments() {
+                        val projectDocuments = documents.filter { it.path != null && it.isModified }
+                        withContext(Dispatchers.IO) {
+                            projectDocuments.forEach { document ->
+                                File(document.path!!).writeText(document.content)
+                            }
+                        }
+                        withContext(Dispatchers.Main) {
+                            projectDocuments.forEach { document ->
+                                val index = documents.indexOfFirst { it.id == document.id }
+                                if (index >= 0) documents[index] = documents[index].copy(isModified = false)
+                            }
+                        }
                     }
                     withContext(Dispatchers.Main) {
                         val index = documents.indexOfFirst { it.id == doc.id }

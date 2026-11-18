@@ -11,8 +11,8 @@ android {
         applicationId = "rh.code.editor"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -91,6 +91,9 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("org.eclipse.jgit:org.eclipse.jgit:6.8.0.202311291450-r")
+    implementation("androidx.webkit:webkit:1.10.0")
+    implementation("com.github.javaparser:javaparser-core:3.27.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

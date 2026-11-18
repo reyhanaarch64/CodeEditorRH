@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,21 +32,31 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import rh.code.editor.data.EditorViewModel
 import rh.code.editor.data.FileNode
+import rh.code.editor.git.GitViewModel
+import rh.code.editor.format.CodeFormatter
 import rh.code.editor.ui.components.*
 import rh.code.editor.ui.editor.CodeEditorScreen
+import rh.code.editor.ui.git.GitScreen
 import rh.code.editor.ui.preview.PreviewScreen
 import rh.code.editor.ui.theme.*
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val viewModel: EditorViewModel = viewModel()
+            val gitViewModel: GitViewModel = viewModel()
             CodeEditorTheme(isDark = viewModel.isDarkTheme.value) {
                 val context = LocalContext.current
+                BackHandler(enabled = viewModel.showGitScreen.value) {
+                    viewModel.showGitScreen.value = false
+                }
                 LaunchedEffect(Unit) { viewModel.init(context) }
 
                 val activeDoc = viewModel.getActiveDocument()
@@ -53,6 +64,16 @@ class MainActivity : ComponentActivity() {
                 val session = viewModel.previewSession.value
 
                 when {
+                    viewModel.showGitScreen.value -> {
+                        GitScreen(
+                            gitViewModel = gitViewModel,
+                            project = viewModel.currentProject.value,
+                            projects = viewModel.listAvailableProjects(),
+                            onBack = { viewModel.showGitScreen.value = false },
+                            onOpenProject = { path -> viewModel.openProject(context, path) },
+                            onBeforeGitOperation = { viewModel.saveProjectDocuments() }
+                        )
+                    }
                     viewModel.showSettings.value -> {
                         rh.code.editor.ui.settings.SettingsScreen(
                             viewModel = viewModel,
@@ -98,6 +119,9 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
     var newItemName by remember { mutableStateOf("") }
 
     var binaryToast by remember { mutableStateOf<String?>(null) }
+    var formatMessage by remember { mutableStateOf<String?>(null) }
+    var isFormatting by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val openFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -291,6 +315,34 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                 onFindReplace = {
                     viewModel.moreDrawerOpen.value = false
                     viewModel.showFindReplace.value = true
+                },
+                onGit = {
+                    viewModel.moreDrawerOpen.value = false
+                    viewModel.showGitScreen.value = true
+                },
+                onFormat = {
+                    viewModel.moreDrawerOpen.value = false
+                    val document = activeDoc
+                    if (document != null && !isFormatting) {
+                        coroutineScope.launch {
+                            isFormatting = true
+                            try {
+                                val formatted = CodeFormatter.format(
+                                    context,
+                                    document.language,
+                                    document.content
+                                )
+                                viewModel.updateContent(document.id, formatted)
+                                formatMessage = "format selesai"
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                formatMessage = "format gagal: ${e.message ?: "kesalahan tidak diketahui"}"
+                            } finally {
+                                isFormatting = false
+                            }
+                        }
+                    }
                 },
                 onExitProject = { viewModel.moreDrawerOpen.value = false; viewModel.exitProject() },
                 onClose = { viewModel.moreDrawerOpen.value = false }
@@ -595,6 +647,30 @@ fun EditorApp(viewModel: EditorViewModel, activeDoc: rh.code.editor.data.Documen
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(binaryToast!!, color = TextPrimary, fontSize = 13.sp)
+            }
+
+            if (formatMessage != null) {
+                LaunchedEffect(formatMessage) {
+                    delay(3000)
+                    formatMessage = null
+                }
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Box(
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceElevated).padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(formatMessage!!, color = TextPrimary, fontSize = 13.sp)
+                    }
+                }
+            }
+
+            if (isFormatting) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.CircularProgressIndicator(color = Primary)
+                }
             }
         }
     }
