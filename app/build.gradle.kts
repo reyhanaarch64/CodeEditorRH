@@ -92,6 +92,7 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("org.eclipse.jgit:org.eclipse.jgit:6.8.0.202311291450-r")
+    implementation("org.slf4j:slf4j-android:1.7.36")
     implementation("androidx.webkit:webkit:1.10.0")
     implementation("com.github.javaparser:javaparser-core:3.27.0")
 
