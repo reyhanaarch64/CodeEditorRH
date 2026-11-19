@@ -278,8 +278,12 @@ class EditorViewModel : ViewModel() {
 
     fun listAvailableProjects(): List<File> {
         val root = File("/sdcard/codeEditorRH")
-        if (!root.exists()) return emptyList()
-        return root.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
+        return try {
+            if (!root.exists()) emptyList()
+            else root.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() } ?: emptyList()
+        } catch (_: SecurityException) {
+            emptyList()
+        }
     }
 
     fun openProject(context: Context, projectPath: String) {

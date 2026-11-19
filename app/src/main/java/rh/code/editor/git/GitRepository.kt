@@ -31,7 +31,8 @@ data class GitSnapshot(
     val branch: String,
     val remoteUrl: String?,
     val changes: List<GitFileChange>,
-    val commits: List<GitCommit>
+    val commits: List<GitCommit>,
+    val isRepository: Boolean
 )
 
 class GitRepository(private val root: File) {
@@ -44,35 +45,52 @@ class GitRepository(private val root: File) {
         }
     }
 
-    fun status(): GitSnapshot = initialize().use { git ->
-        val status = git.status().call()
-        val staged = status.added + status.changed + status.removed
-        val untracked = status.untracked
-        val unstaged = status.modified + status.missing
-        val conflicting = status.conflicting
-        val changes = (staged + untracked + unstaged + conflicting).distinct().sorted().map { path ->
-            GitFileChange(
-                path = path,
-                staged = path in staged,
-                unstaged = path in unstaged,
-                untracked = path in untracked,
-                conflicting = path in conflicting
+    fun status(): GitSnapshot {
+        if (!File(root, ".git").exists()) {
+            return GitSnapshot(
+                branch = "belum diinisialisasi",
+                remoteUrl = null,
+                changes = emptyList(),
+                commits = emptyList(),
+                isRepository = false
             )
         }
-        val remote = git.repository.config.getString("remote", "origin", "url")
-        val commits = try {
-            git.log().setMaxCount(50).call().map {
-                GitCommit(
-                    id = it.name,
-                    shortMessage = it.shortMessage,
-                    author = it.authorIdent.name,
-                    time = it.commitTime.toLong()
+
+        return initialize().use { git ->
+            val status = git.status().call()
+            val staged = status.added + status.changed + status.removed
+            val untracked = status.untracked
+            val unstaged = status.modified + status.missing
+            val conflicting = status.conflicting
+            val changes = (staged + untracked + unstaged + conflicting).distinct().sorted().map { path ->
+                GitFileChange(
+                    path = path,
+                    staged = path in staged,
+                    unstaged = path in unstaged,
+                    untracked = path in untracked,
+                    conflicting = path in conflicting
                 )
-            }.toList()
-        } catch (_: NoHeadException) {
-            emptyList()
+            }
+            val remote = git.repository.config.getString("remote", "origin", "url")
+            val commits = try {
+                git.log().setMaxCount(50).call().map {
+                    GitCommit(
+                        id = it.name,
+                        shortMessage = it.shortMessage,
+                        author = it.authorIdent.name,
+                        time = it.commitTime.toLong()
+                    )
+                }.toList()
+            } catch (_: NoHeadException) {
+                emptyList()
+            }
+            GitSnapshot(git.repository.branch ?: "HEAD", remote, changes, commits, isRepository = true)
         }
-        GitSnapshot(git.repository.branch ?: "HEAD", remote, changes, commits)
+    }
+
+    fun initializeRepository(): GitSnapshot {
+        initialize().use { }
+        return status()
     }
 
     fun stage(path: String, staged: Boolean) {

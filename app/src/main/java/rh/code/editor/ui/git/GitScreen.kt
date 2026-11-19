@@ -113,6 +113,37 @@ fun GitScreen(
                     }
                 }
             }
+        } else if (gitViewModel.snapshot.value == null) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (gitViewModel.busy.value) {
+                    CircularProgressIndicator(color = Primary)
+                }
+                gitViewModel.error.value?.let {
+                    Text(it, color = Error, fontSize = 12.sp)
+                }
+            }
+        } else if (gitViewModel.snapshot.value?.isRepository == false) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Folder, null, tint = Primary, modifier = Modifier.size(40.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("Folder ini belum menjadi repository Git", color = TextPrimary)
+                Spacer(Modifier.height(8.dp))
+                GitButton(Icons.Default.Code, "init repository") {
+                    gitViewModel.initializeRepository(root!!)
+                }
+                gitViewModel.error.value?.let {
+                    Spacer(Modifier.height(10.dp))
+                    Text(it, color = Error, fontSize = 12.sp)
+                }
+            }
         } else {
             val snapshot = gitViewModel.snapshot.value
             Row(

@@ -1,6 +1,7 @@
 package rh.code.editor.git
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +19,10 @@ class GitViewModel : ViewModel() {
 
     fun refresh(root: File) {
         runGit(root) { it.status() }
+    }
+
+    fun initializeRepository(root: File) {
+        runGit(root) { it.initializeRepository() }
     }
 
     fun saveToken(context: Context, token: String) {
@@ -136,9 +141,17 @@ class GitViewModel : ViewModel() {
                 throw e
             } catch (e: Exception) {
                 error.value = e.message ?: "operasi Git gagal"
+                Log.e(TAG, "Git operation failed", e)
+            } catch (e: LinkageError) {
+                error.value = "Git tidak kompatibel dengan perangkat ini: ${e.message ?: e.javaClass.simpleName}"
+                Log.e(TAG, "Git runtime linkage failure", e)
             } finally {
                 busy.value = false
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "GitViewModel"
     }
 }
